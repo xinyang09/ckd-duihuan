@@ -158,6 +158,10 @@
         font-size: 12px;
         color: var(--accent-3);
       }
+      .countdown {
+        font-size: 12px;
+        color: var(--muted);
+      }
       .value {
         font-size: 18px;
         word-break: break-all;
@@ -245,9 +249,9 @@
             </div>
             <div class="value" id="email">-</div>
           </div>
-          <div class="panel copy-panel" id="passwordPanel" data-copy-target="gptPassword" data-copy-label="GPT 密码" title="点击复制 GPT 密码">
+          <div class="panel copy-panel" id="passwordPanel" data-copy-target="gptPassword" data-copy-label="ChatGPT 登录密码" title="点击复制 ChatGPT 登录密码">
             <div class="label-row">
-              <div class="label">GPT 密码</div>
+              <div class="label">ChatGPT 登录密码</div>
               <div class="copy-tip">点击复制</div>
             </div>
             <div class="value" id="gptPassword">-</div>
@@ -255,7 +259,10 @@
         </section>
 
         <section class="mail">
-          <div class="label">最新验证码邮件</div>
+          <div class="label-row">
+            <div class="label">最新验证码邮件</div>
+            <div class="countdown" id="mailRefreshCountdown">自动刷新未启动</div>
+          </div>
           <div id="latestMailCard" class="mail-list">
             <div class="mail-item">暂无内容</div>
           </div>
@@ -332,6 +339,7 @@
       const emailEl = document.getElementById("email");
       const passwordEl = document.getElementById("gptPassword");
       const latestMailCardEl = document.getElementById("latestMailCard");
+      const mailRefreshCountdownEl = document.getElementById("mailRefreshCountdown");
       const mailListMetaEl = document.getElementById("mailListMeta");
       const mailListEl = document.getElementById("mailList");
 
@@ -342,8 +350,13 @@
       const smsPickupUrlEl = document.getElementById("smsPickupUrl");
       const smsCodeEl = document.getElementById("smsCode");
       const smsRawEl = document.getElementById("smsRaw");
+      let mailPollingTimer = null;
+      let mailCountdownTimer = null;
+      let mailCountdownSeconds = 0;
       let smsPollingTimer = null;
       let smsToken = "";
+      const STORAGE_KEY = "cdk_duihuan_home_state_v1";
+      const MAIL_REFRESH_INTERVAL_SECONDS = 5;
 
       function setStatus(message, isError = false) {
         statusEl.textContent = message;
@@ -353,6 +366,111 @@
       function setSmsStatus(message, isError = false) {
         smsStatusEl.textContent = message;
         smsStatusEl.style.color = isError ? "#b42318" : "#145b9f";
+      }
+
+      function savePageState() {
+        const activeTab = tabButtons.find((button) => button.classList.contains("active"))?.dataset.tab || "mail";
+        const state = {
+          activeTab,
+          cdk: cdkInput.value || "",
+          status: statusEl.textContent || "",
+          statusIsError: statusEl.style.color === "rgb(180, 35, 24)",
+          email: emailEl.textContent || "-",
+          gptPassword: passwordEl.textContent || "-",
+          latestMailHtml: latestMailCardEl.innerHTML || "",
+          mailRefreshCountdown: mailRefreshCountdownEl.textContent || "自动刷新未启动",
+          mailListMeta: mailListMetaEl.textContent || "-",
+          mailListHtml: mailListEl.innerHTML || "",
+          smsCdk: smsCdkInput.value || "",
+          smsStatus: smsStatusEl.textContent || "",
+          smsStatusIsError: smsStatusEl.style.color === "rgb(180, 35, 24)",
+          smsPhone: smsPhoneEl.textContent || "-",
+          smsApiUrl: smsApiUrlEl.textContent || "-",
+          smsApiHref: smsApiUrlEl.getAttribute("href") || "#",
+          smsPickupUrl: smsPickupUrlEl.textContent || "-",
+          smsPickupHref: smsPickupUrlEl.getAttribute("href") || "#",
+          smsCode: smsCodeEl.textContent || "-",
+          smsRaw: smsRawEl.textContent || "暂无内容",
+          smsToken,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      function restorePageState() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return;
+        }
+        try {
+          const state = JSON.parse(raw);
+          cdkInput.value = state.cdk || "";
+          setStatus(state.status || "", !!state.statusIsError);
+          emailEl.textContent = state.email || "-";
+          passwordEl.textContent = state.gptPassword || "-";
+          latestMailCardEl.innerHTML = state.latestMailHtml || '<div class="mail-item">暂无内容</div>';
+          mailRefreshCountdownEl.textContent = state.mailRefreshCountdown || "自动刷新未启动";
+          mailListMetaEl.textContent = state.mailListMeta || "-";
+          mailListEl.innerHTML = state.mailListHtml || '<div class="mail-item">暂无内容</div>';
+
+          smsCdkInput.value = state.smsCdk || "";
+          setSmsStatus(state.smsStatus || "", !!state.smsStatusIsError);
+          smsPhoneEl.textContent = state.smsPhone || "-";
+          smsApiUrlEl.textContent = state.smsApiUrl || "-";
+          smsApiUrlEl.href = state.smsApiHref || "#";
+          smsPickupUrlEl.textContent = state.smsPickupUrl || "-";
+          smsPickupUrlEl.href = state.smsPickupHref || "#";
+          smsCodeEl.textContent = state.smsCode || "-";
+          smsRawEl.textContent = state.smsRaw || "暂无内容";
+          smsToken = state.smsToken || "";
+          switchTab(state.activeTab || "mail");
+          if (state.cdk) {
+            startMailAutoRefresh();
+          }
+          if (smsToken) {
+            if (smsPollingTimer) {
+              clearInterval(smsPollingTimer);
+            }
+            smsPollingTimer = setInterval(refreshSmsCode, 12000);
+          }
+        } catch (error) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+
+      function updateMailCountdownLabel() {
+        if (mailCountdownSeconds <= 0) {
+          mailRefreshCountdownEl.textContent = "正在自动刷新...";
+          return;
+        }
+        mailRefreshCountdownEl.textContent = `${mailCountdownSeconds}s 后自动刷新`;
+      }
+
+      function resetMailCountdown() {
+        mailCountdownSeconds = MAIL_REFRESH_INTERVAL_SECONDS;
+        updateMailCountdownLabel();
+      }
+
+      function startMailAutoRefresh() {
+        if (mailPollingTimer) {
+          clearInterval(mailPollingTimer);
+        }
+        if (mailCountdownTimer) {
+          clearInterval(mailCountdownTimer);
+        }
+        resetMailCountdown();
+        mailCountdownTimer = setInterval(() => {
+          mailCountdownSeconds -= 1;
+          if (mailCountdownSeconds < 0) {
+            mailCountdownSeconds = 0;
+          }
+          updateMailCountdownLabel();
+          savePageState();
+        }, 1000);
+        mailPollingTimer = setInterval(async () => {
+          await loadLatestCode(true);
+          resetMailCountdown();
+          savePageState();
+        }, MAIL_REFRESH_INTERVAL_SECONDS * 1000);
       }
 
       async function copyPanelValue(panel) {
@@ -368,9 +486,11 @@
           await navigator.clipboard.writeText(value);
           panel.classList.add("copied");
           setStatus(`已复制${label}`);
+          savePageState();
           window.setTimeout(() => panel.classList.remove("copied"), 1200);
         } catch (error) {
           setStatus(`复制${label}失败`, true);
+          savePageState();
         }
       }
 
@@ -383,6 +503,26 @@
           .replace(/'/g, "&#39;");
       }
 
+      function formatDisplayTime(value) {
+        if (!value) {
+          return "-";
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+          return value;
+        }
+        return new Intl.DateTimeFormat("zh-CN", {
+          timeZone: "Asia/Shanghai",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        }).format(date);
+      }
+
       function renderMailList(items) {
         if (!items || items.length === 0) {
           mailListEl.innerHTML = '<div class="mail-item">暂无匹配的验证码邮件</div>';
@@ -393,7 +533,7 @@
           <article class="mail-item">
             <div class="mail-item-title">${index + 1}. [${escapeHtml(item.mailbox)}] ${escapeHtml(item.subject)}</div>
             <div class="mail-item-meta">From: ${escapeHtml(item.from)}</div>
-            <div class="mail-item-meta">Date: ${escapeHtml(item.date)}</div>
+            <div class="mail-item-meta">Date: ${escapeHtml(formatDisplayTime(item.date))}</div>
             <div class="mail-item-code">验证码: ${escapeHtml(item.code || "未识别到")}</div>
           </article>
         `).join("");
@@ -409,7 +549,7 @@
           <article class="mail-item">
             <div class="mail-item-title">[${escapeHtml(item.mailbox)}] ${escapeHtml(item.subject)}</div>
             <div class="mail-item-meta">From: ${escapeHtml(item.from)}</div>
-            <div class="mail-item-meta">Date: ${escapeHtml(item.date)}</div>
+            <div class="mail-item-meta">Date: ${escapeHtml(formatDisplayTime(item.date))}</div>
             <div class="mail-item-code">验证码: ${escapeHtml(item.code || "未识别到")}</div>
           </article>
         `;
@@ -448,20 +588,25 @@
           emailEl.textContent = data.email || "-";
           passwordEl.textContent = data.gpt_password || "-";
           setStatus(`兑换成功：${data.cdk}`);
+          startMailAutoRefresh();
+          savePageState();
           await loadLatestCode();
         } catch (error) {
           setStatus(error.message, true);
+          savePageState();
         }
       }
 
-      async function loadLatestCode() {
+      async function loadLatestCode(isAutoRefresh = false) {
         const cdk = cdkInput.value.trim();
         if (!cdk) {
           setStatus("请输入 CDK", true);
           return;
         }
 
-        setStatus("正在获取验证码邮件...");
+        if (!isAutoRefresh) {
+          setStatus("正在获取验证码邮件...");
+        }
         try {
           const data = await fetchJson("/api/latest-code", {
             method: "POST",
@@ -469,9 +614,17 @@
             body: JSON.stringify({ cdk }),
           });
           renderLatestMail(data);
-          setStatus("最新验证码邮件已更新");
+          resetMailCountdown();
+          if (!isAutoRefresh) {
+            setStatus("最新验证码邮件已更新");
+          }
+          savePageState();
         } catch (error) {
-          setStatus(error.message, true);
+          if (!isAutoRefresh) {
+            setStatus(error.message, true);
+          }
+          mailRefreshCountdownEl.textContent = "自动刷新中";
+          savePageState();
         }
       }
 
@@ -492,8 +645,10 @@
           mailListMetaEl.textContent = `共 ${data.count || 0} 封验证码邮件`;
           renderMailList(data.items || []);
           setStatus("邮件列表已更新");
+          savePageState();
         } catch (error) {
           setStatus(error.message, true);
+          savePageState();
         }
       }
 
@@ -505,8 +660,10 @@
           const data = await fetchJson(`/api/sms/code/${encodeURIComponent(smsToken)}`);
           smsCodeEl.textContent = data.code || "等待中";
           smsRawEl.textContent = data.raw || "暂无内容";
+          savePageState();
         } catch (error) {
           setSmsStatus(error.message, true);
+          savePageState();
         }
       }
 
@@ -538,8 +695,10 @@
           }
           smsPollingTimer = setInterval(refreshSmsCode, 12000);
           switchTab("sms");
+          savePageState();
         } catch (error) {
           setSmsStatus(error.message, true);
+          savePageState();
         }
       }
 
@@ -549,6 +708,12 @@
       document.querySelectorAll(".copy-panel").forEach((panel) => {
         panel.addEventListener("click", () => copyPanelValue(panel));
       });
+      cdkInput.addEventListener("input", savePageState);
+      smsCdkInput.addEventListener("input", savePageState);
+      tabButtons.forEach((button) => {
+        button.addEventListener("click", savePageState);
+      });
+      restorePageState();
     </script>
   </body>
   </html>
