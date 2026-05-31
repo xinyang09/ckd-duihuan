@@ -1,11 +1,12 @@
 import os
 import random
 import re
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import pymysql
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
 
 DEFAULT_CLIENT_ID = os.getenv("OUTLOOK_CLIENT_ID", "")
@@ -21,6 +22,7 @@ APP_PORT = int(os.getenv("APP_PORT", "5090"))
 RECENT_MINUTES = int(os.getenv("RECENT_MINUTES", "30"))
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(32))
 
 
 def env_flag(name, default=False):
@@ -32,6 +34,34 @@ def env_flag(name, default=False):
 
 def admin_enabled():
     return env_flag("ADMIN_ENABLED", default=False)
+
+
+def admin_password():
+    return os.getenv("ADMIN_PASSWORD", "").strip()
+
+
+def admin_authenticated():
+    return bool(session.get("admin_authed"))
+
+
+def require_admin_page():
+    if not admin_enabled():
+        return jsonify({"error": "后台未开启"}), 403
+    if not admin_password():
+        return jsonify({"error": "后台密码未配置"}), 403
+    if not admin_authenticated():
+        return redirect(url_for("admin_login_page"))
+    return None
+
+
+def require_admin_api():
+    if not admin_enabled():
+        return jsonify({"error": "后台未开启"}), 403
+    if not admin_password():
+        return jsonify({"error": "后台密码未配置"}), 403
+    if not admin_authenticated():
+        return jsonify({"error": "后台未登录"}), 401
+    return None
 
 
 def load_env_file():
@@ -676,9 +706,42 @@ def index():
 
 @app.route("/admin")
 def admin():
+    guard = require_admin_page()
+    if guard:
+        return guard
+    return render_template("admin.html")
+
+
+@app.route("/admin/login")
+def admin_login_page():
     if not admin_enabled():
         return jsonify({"error": "后台未开启"}), 403
-    return render_template("admin.html")
+    if admin_authenticated():
+        return redirect(url_for("admin"))
+    return render_template("admin_login.html")
+
+
+@app.route("/admin/logout", methods=["POST"])
+def admin_logout():
+    session.pop("admin_authed", None)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/login", methods=["POST"])
+def admin_login():
+    if not admin_enabled():
+        return jsonify({"error": "后台未开启"}), 403
+    configured_password = admin_password()
+    if not configured_password:
+        return jsonify({"error": "后台密码未配置"}), 403
+
+    data = request.get_json(silent=True) or {}
+    password = (data.get("password") or "").strip()
+    if password != configured_password:
+        return jsonify({"error": "后台密码错误"}), 401
+
+    session["admin_authed"] = True
+    return jsonify({"ok": True})
 
 
 @app.route("/sms-pickup")
@@ -822,15 +885,17 @@ def latest_code():
 
 @app.route("/api/admin/accounts", methods=["GET"])
 def admin_accounts():
-    if not admin_enabled():
-        return jsonify({"error": "后台未开启"}), 403
+    guard = require_admin_api()
+    if guard:
+        return guard
     return jsonify({"items": list_accounts()})
 
 
 @app.route("/api/admin/accounts/<cdk>", methods=["DELETE"])
 def admin_delete_account(cdk):
-    if not admin_enabled():
-        return jsonify({"error": "后台未开启"}), 403
+    guard = require_admin_api()
+    if guard:
+        return guard
     try:
         deleted = delete_account(cdk)
     except Exception as exc:
@@ -843,8 +908,9 @@ def admin_delete_account(cdk):
 
 @app.route("/api/admin/import", methods=["POST"])
 def admin_import():
-    if not admin_enabled():
-        return jsonify({"error": "后台未开启"}), 403
+    guard = require_admin_api()
+    if guard:
+        return guard
     data = request.get_json(silent=True) or {}
     raw_line = (data.get("line") or "").strip()
     if not raw_line:
@@ -860,8 +926,9 @@ def admin_import():
 
 @app.route("/api/admin/sms/import", methods=["POST"])
 def admin_sms_import():
-    if not admin_enabled():
-        return jsonify({"error": "后台未开启"}), 403
+    guard = require_admin_api()
+    if guard:
+        return guard
     data = request.get_json(silent=True) or {}
     lines = (data.get("lines") or "").strip()
     if not lines:
@@ -877,8 +944,9 @@ def admin_sms_import():
 
 @app.route("/api/admin/sms/cdks/generate", methods=["POST"])
 def admin_sms_generate():
-    if not admin_enabled():
-        return jsonify({"error": "后台未开启"}), 403
+    guard = require_admin_api()
+    if guard:
+        return guard
     data = request.get_json(silent=True) or {}
     count = int(data.get("count") or 0)
     batch_name = (data.get("batchName") or "").strip()
@@ -897,8 +965,9 @@ def admin_sms_generate():
 
 @app.route("/api/admin/sms/dashboard", methods=["GET"])
 def admin_sms_dashboard():
-    if not admin_enabled():
-        return jsonify({"error": "后台未开启"}), 403
+    guard = require_admin_api()
+    if guard:
+        return guard
     try:
         return jsonify(sms_dashboard())
     except Exception as exc:
@@ -907,8 +976,9 @@ def admin_sms_dashboard():
 
 @app.route("/api/admin/sms/cdks/<code>", methods=["DELETE"])
 def admin_delete_sms_cdk(code):
-    if not admin_enabled():
-        return jsonify({"error": "后台未开启"}), 403
+    guard = require_admin_api()
+    if guard:
+        return guard
     try:
         deleted = delete_sms_cdk(code)
     except Exception as exc:
@@ -920,8 +990,9 @@ def admin_delete_sms_cdk(code):
 
 @app.route("/api/admin/sms/phones", methods=["GET"])
 def admin_sms_phones():
-    if not admin_enabled():
-        return jsonify({"error": "后台未开启"}), 403
+    guard = require_admin_api()
+    if guard:
+        return guard
     try:
         return jsonify({"items": list_sms_phones()})
     except Exception as exc:
@@ -930,8 +1001,9 @@ def admin_sms_phones():
 
 @app.route("/api/admin/sms/phones/<phone>", methods=["DELETE"])
 def admin_delete_sms_phone(phone):
-    if not admin_enabled():
-        return jsonify({"error": "后台未开启"}), 403
+    guard = require_admin_api()
+    if guard:
+        return guard
     try:
         deleted = delete_sms_phone(phone)
     except ValueError as exc:

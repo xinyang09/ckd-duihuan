@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>后台登录</title>
+    <style>
+      :root {
+        --bg: #f2f2f2;
+        --panel: rgba(255, 255, 255, 0.94);
+        --line: rgba(0, 0, 0, 0.1);
+        --text: #111111;
+        --muted: #666666;
+        --accent: #111111;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(255,255,255,0.96) 0, transparent 28%),
+          linear-gradient(135deg, #fafafa, #efefef 50%, #e3e3e3);
+        color: var(--text);
+      }
+      .card {
+        width: min(420px, 100%);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 28px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.08);
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+      p {
+        margin: 0 0 18px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        font-size: 16px;
+        margin-bottom: 14px;
+      }
+      button {
+        width: 100%;
+        border: 0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        font-size: 15px;
+        font-weight: 600;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+      }
+      .status {
+        min-height: 24px;
+        margin-top: 12px;
+        color: #b42318;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>后台登录</h1>
+      <p>请输入后台访问密码。</p>
+      <input id="password" type="password" placeholder="请输入后台密码" />
+      <button id="loginBtn" type="button">登录</button>
+      <div class="status" id="status"></div>
+    </main>
+
+    <script>
+      const passwordEl = document.getElementById("password");
+      const statusEl = document.getElementById("status");
+
+      function setStatus(message) {
+        statusEl.textContent = message || "";
+      }
+
+      async function login() {
+        const password = passwordEl.value.trim();
+        if (!password) {
+          setStatus("请输入后台密码");
+          return;
+        }
+
+        setStatus("正在登录...");
+        try {
+          const response = await fetch("/api/admin/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password }),
+          });
+          const text = await response.text();
+          const data = text ? JSON.parse(text) : {};
+          if (!response.ok) {
+            throw new Error(data.error || "登录失败");
+          }
+          window.location.href = "/admin";
+        } catch (error) {
+          setStatus(error.message || "登录失败");
+        }
+      }
+
+      document.getElementById("loginBtn").addEventListener("click", login);
+      passwordEl.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          login();
+        }
+      });
+    </script>
+  </body>
+  </html>
