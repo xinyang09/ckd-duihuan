@@ -6,26 +6,26 @@
     <title>后台导入</title>
     <style>
       :root {
-        --bg: #f7efe4;
-        --panel: rgba(255, 250, 242, 0.88);
-        --panel-strong: rgba(255, 255, 255, 0.8);
-        --line: rgba(164, 132, 88, 0.22);
-        --text: #231b12;
-        --muted: #78654d;
-        --accent: #b5532d;
-        --accent-strong: #8d3c1d;
-        --accent-2: #1d5fa8;
-        --accent-2-strong: #164983;
-        --shadow: 0 24px 80px rgba(77, 52, 21, 0.12);
+        --bg: #f2f2f2;
+        --panel: rgba(255, 255, 255, 0.9);
+        --panel-strong: rgba(255, 255, 255, 0.95);
+        --line: rgba(0, 0, 0, 0.1);
+        --text: #111111;
+        --muted: #666666;
+        --accent: #111111;
+        --accent-strong: #000000;
+        --accent-2: #2f2f2f;
+        --accent-2-strong: #1b1b1b;
+        --shadow: 0 24px 80px rgba(0, 0, 0, 0.08);
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
         background:
-          radial-gradient(circle at top left, rgba(255, 208, 151, 0.74) 0, transparent 26%),
-          radial-gradient(circle at bottom right, rgba(196, 221, 243, 0.46) 0, transparent 24%),
-          linear-gradient(135deg, #faf4ea, #f0e4d1 48%, #eadcc6);
+          radial-gradient(circle at top left, rgba(255,255,255,0.96) 0, transparent 26%),
+          radial-gradient(circle at bottom right, rgba(214,214,214,0.36) 0, transparent 24%),
+          linear-gradient(135deg, #fafafa, #efefef 48%, #e4e4e4);
         color: var(--text);
         min-height: 100vh;
         padding: 28px;
@@ -38,7 +38,7 @@
       }
       .card {
         background: var(--panel);
-        border: 1px solid rgba(255,255,255,0.58);
+        border: 1px solid rgba(0,0,0,0.06);
         border-radius: 28px;
         padding: 30px;
         box-shadow: var(--shadow);
@@ -54,7 +54,7 @@
         gap: 8px;
         padding: 8px 12px;
         border-radius: 999px;
-        background: rgba(181, 83, 45, 0.1);
+        background: rgba(17, 17, 17, 0.06);
         color: var(--accent-strong);
         font-size: 13px;
         font-weight: 600;
@@ -101,19 +101,19 @@
       }
       .tab-btn:hover {
         transform: translateY(-1px);
-        border-color: rgba(164, 132, 88, 0.42);
-        box-shadow: 0 12px 28px rgba(77, 52, 21, 0.08);
+        border-color: rgba(0, 0, 0, 0.18);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
       }
       .tab-btn.active {
         background: linear-gradient(135deg, var(--accent), var(--accent-strong));
         color: white;
         border-color: transparent;
-        box-shadow: 0 14px 30px rgba(181, 83, 45, 0.22);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
       }
       .tab-btn[data-tab="sms"].active {
         background: linear-gradient(135deg, var(--accent-2), var(--accent-2-strong));
         border-color: transparent;
-        box-shadow: 0 14px 30px rgba(29, 95, 168, 0.22);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
       }
       .tab-panel[hidden] {
         display: none;
@@ -175,7 +175,7 @@
         border: 1px solid var(--line);
         border-radius: 18px;
         padding: 14px;
-        background: rgba(255,255,255,0.62);
+        background: rgba(255,255,255,0.84);
       }
       .subsection-title {
         margin: 0;
@@ -198,16 +198,16 @@
         cursor: pointer;
         color: white;
         background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-        box-shadow: 0 14px 26px rgba(181, 83, 45, 0.18);
+        box-shadow: 0 14px 26px rgba(0, 0, 0, 0.14);
         transition: transform .16s ease, box-shadow .16s ease;
       }
       button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 18px 32px rgba(181, 83, 45, 0.22);
+        box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
       }
       .secondary {
         background: linear-gradient(135deg, var(--accent-2), var(--accent-2-strong));
-        box-shadow: 0 14px 26px rgba(29, 95, 168, 0.18);
+        box-shadow: 0 14px 26px rgba(0, 0, 0, 0.14);
       }
       .status {
         min-height: 24px;

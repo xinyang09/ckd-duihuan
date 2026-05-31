@@ -6,22 +6,22 @@
     <title>CDK 兑换中心</title>
     <style>
       :root {
-        --bg: #f4efe6;
-        --panel: rgba(255, 250, 242, 0.9);
-        --line: #d9c7a8;
-        --text: #2d2418;
-        --muted: #6c5d47;
-        --accent: #a64b2a;
-        --accent-2: #1f5c4a;
-        --accent-3: #145b9f;
+        --bg: #f4f4f4;
+        --panel: rgba(255, 255, 255, 0.92);
+        --line: #d4d4d4;
+        --text: #111111;
+        --muted: #666666;
+        --accent: #111111;
+        --accent-2: #2f2f2f;
+        --accent-3: #4a4a4a;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
         background:
-          radial-gradient(circle at top left, #f9d8b8 0, transparent 28%),
-          linear-gradient(135deg, #f4efe6, #efe5d3 45%, #e8dcc7);
+          radial-gradient(circle at top left, rgba(255,255,255,0.96) 0, transparent 30%),
+          linear-gradient(135deg, #fafafa, #f0f0f0 45%, #e7e7e7);
         color: var(--text);
         min-height: 100vh;
         padding: 24px;
@@ -53,7 +53,7 @@
         padding: 12px 18px;
         font-size: 15px;
         cursor: pointer;
-        background: rgba(255,255,255,0.72);
+        background: rgba(255,255,255,0.88);
         color: var(--text);
       }
       .tab-btn.active {
@@ -67,10 +67,10 @@
       }
       .card {
         background: var(--panel);
-        border: 1px solid rgba(217, 199, 168, 0.9);
+        border: 1px solid rgba(0, 0, 0, 0.08);
         border-radius: 24px;
         padding: 24px;
-        box-shadow: 0 24px 80px rgba(77, 52, 21, 0.14);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.08);
         backdrop-filter: blur(12px);
       }
       .tab-panel[hidden] {
@@ -134,13 +134,13 @@
       }
       .copy-panel:hover {
         transform: translateY(-1px);
-        border-color: #c89f78;
-        box-shadow: 0 14px 28px rgba(77, 52, 21, 0.08);
-        background: rgba(255,255,255,0.78);
+        border-color: #888888;
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.08);
+        background: rgba(255,255,255,0.96);
       }
       .copy-panel.copied {
-        border-color: #1f5c4a;
-        box-shadow: 0 0 0 3px rgba(31, 92, 74, 0.12);
+        border-color: #111111;
+        box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12);
       }
       .label {
         font-size: 13px;
@@ -176,7 +176,7 @@
       .mail-item {
         border: 1px solid var(--line);
         border-radius: 14px;
-        background: rgba(255, 255, 255, 0.75);
+        background: rgba(255, 255, 255, 0.94);
         padding: 14px 16px;
       }
       .mail-item-title {
@@ -193,7 +193,7 @@
         margin-top: 10px;
         font-size: 18px;
         font-weight: 700;
-        color: var(--accent-2);
+        color: var(--accent);
       }
       .mono {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -218,7 +218,6 @@
     <main class="page">
       <section class="hero">
         <h1>CDK 兑换中心</h1>
-        <p>邮箱账号兑换和 SMS 接码兑换共用当前项目数据库，但两类 CDK 分开管理，不通用。</p>
       </section>
 
       <section class="tabs">
