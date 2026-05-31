@@ -12,4 +12,4 @@ COPY . .
 
 EXPOSE 5090
 
-CMD ["python", "app.py"]
+CMD ["sh", "-c", "python init_mysql.py && python app.py"]
