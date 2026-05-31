@@ -327,6 +327,7 @@
                   </div>
                   <div class="status" id="status"></div>
                   <p>右侧实时展示当前已导入的邮箱账号与 CDK 状态。</p>
+                  <div class="subsection-note" id="mailCountMeta">当前共 0 条</div>
                   <table>
                     <thead>
                       <tr>
@@ -439,6 +440,7 @@
       });
 
       const statusEl = document.getElementById("status");
+      const mailCountMetaEl = document.getElementById("mailCountMeta");
       const tableBody = document.getElementById("tableBody");
       const importLineEl = document.getElementById("importLine");
       const smsStatusEl = document.getElementById("smsStatus");
@@ -496,7 +498,11 @@
       }
 
       async function fetchJson(url, options = {}) {
-        const response = await fetch(url, options);
+        const nextOptions = {
+          cache: "no-store",
+          ...options,
+        };
+        const response = await fetch(url, nextOptions);
         const text = await response.text();
         let data;
         try {
@@ -512,6 +518,7 @@
 
       async function loadAccounts() {
         const data = await fetchJson("/api/admin/accounts");
+        mailCountMetaEl.textContent = `当前共 ${(data.items || []).length} 条`;
         tableBody.innerHTML = (data.items || []).map(item => `
           <tr>
             <td class="mono">${item.cdk}</td>

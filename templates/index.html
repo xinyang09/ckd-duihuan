@@ -158,10 +158,6 @@
         font-size: 12px;
         color: var(--accent-3);
       }
-      .countdown {
-        font-size: 12px;
-        color: var(--muted);
-      }
       .value {
         font-size: 18px;
         word-break: break-all;
@@ -258,16 +254,6 @@
           </div>
         </section>
 
-        <section class="mail">
-          <div class="label-row">
-            <div class="label">最新验证码邮件</div>
-            <div class="countdown" id="mailRefreshCountdown">自动刷新未启动</div>
-          </div>
-          <div id="latestMailCard" class="mail-list">
-            <div class="mail-item">暂无内容</div>
-          </div>
-        </section>
-
         <section class="mail" style="margin-top: 16px;">
           <div class="label">验证码邮件列表</div>
           <div class="value" id="mailListMeta">-</div>
@@ -338,8 +324,6 @@
       const statusEl = document.getElementById("status");
       const emailEl = document.getElementById("email");
       const passwordEl = document.getElementById("gptPassword");
-      const latestMailCardEl = document.getElementById("latestMailCard");
-      const mailRefreshCountdownEl = document.getElementById("mailRefreshCountdown");
       const mailListMetaEl = document.getElementById("mailListMeta");
       const mailListEl = document.getElementById("mailList");
 
@@ -350,13 +334,9 @@
       const smsPickupUrlEl = document.getElementById("smsPickupUrl");
       const smsCodeEl = document.getElementById("smsCode");
       const smsRawEl = document.getElementById("smsRaw");
-      let mailPollingTimer = null;
-      let mailCountdownTimer = null;
-      let mailCountdownSeconds = 0;
       let smsPollingTimer = null;
       let smsToken = "";
       const STORAGE_KEY = "cdk_duihuan_home_state_v1";
-      const MAIL_REFRESH_INTERVAL_SECONDS = 5;
 
       function setStatus(message, isError = false) {
         statusEl.textContent = message;
@@ -377,8 +357,6 @@
           statusIsError: statusEl.style.color === "rgb(180, 35, 24)",
           email: emailEl.textContent || "-",
           gptPassword: passwordEl.textContent || "-",
-          latestMailHtml: latestMailCardEl.innerHTML || "",
-          mailRefreshCountdown: mailRefreshCountdownEl.textContent || "自动刷新未启动",
           mailListMeta: mailListMetaEl.textContent || "-",
           mailListHtml: mailListEl.innerHTML || "",
           smsCdk: smsCdkInput.value || "",
@@ -407,8 +385,6 @@
           setStatus(state.status || "", !!state.statusIsError);
           emailEl.textContent = state.email || "-";
           passwordEl.textContent = state.gptPassword || "-";
-          latestMailCardEl.innerHTML = state.latestMailHtml || '<div class="mail-item">暂无内容</div>';
-          mailRefreshCountdownEl.textContent = state.mailRefreshCountdown || "自动刷新未启动";
           mailListMetaEl.textContent = state.mailListMeta || "-";
           mailListEl.innerHTML = state.mailListHtml || '<div class="mail-item">暂无内容</div>';
 
@@ -423,9 +399,6 @@
           smsRawEl.textContent = state.smsRaw || "暂无内容";
           smsToken = state.smsToken || "";
           switchTab(state.activeTab || "mail");
-          if (state.cdk) {
-            startMailAutoRefresh();
-          }
           if (smsToken) {
             if (smsPollingTimer) {
               clearInterval(smsPollingTimer);
@@ -435,42 +408,6 @@
         } catch (error) {
           localStorage.removeItem(STORAGE_KEY);
         }
-      }
-
-      function updateMailCountdownLabel() {
-        if (mailCountdownSeconds <= 0) {
-          mailRefreshCountdownEl.textContent = "正在自动刷新...";
-          return;
-        }
-        mailRefreshCountdownEl.textContent = `${mailCountdownSeconds}s 后自动刷新`;
-      }
-
-      function resetMailCountdown() {
-        mailCountdownSeconds = MAIL_REFRESH_INTERVAL_SECONDS;
-        updateMailCountdownLabel();
-      }
-
-      function startMailAutoRefresh() {
-        if (mailPollingTimer) {
-          clearInterval(mailPollingTimer);
-        }
-        if (mailCountdownTimer) {
-          clearInterval(mailCountdownTimer);
-        }
-        resetMailCountdown();
-        mailCountdownTimer = setInterval(() => {
-          mailCountdownSeconds -= 1;
-          if (mailCountdownSeconds < 0) {
-            mailCountdownSeconds = 0;
-          }
-          updateMailCountdownLabel();
-          savePageState();
-        }, 1000);
-        mailPollingTimer = setInterval(async () => {
-          await loadLatestCode(true);
-          resetMailCountdown();
-          savePageState();
-        }, MAIL_REFRESH_INTERVAL_SECONDS * 1000);
       }
 
       async function copyPanelValue(panel) {
@@ -539,22 +476,6 @@
         `).join("");
       }
 
-      function renderLatestMail(item) {
-        if (!item) {
-          latestMailCardEl.innerHTML = '<div class="mail-item">暂无内容</div>';
-          return;
-        }
-
-        latestMailCardEl.innerHTML = `
-          <article class="mail-item">
-            <div class="mail-item-title">[${escapeHtml(item.mailbox)}] ${escapeHtml(item.subject)}</div>
-            <div class="mail-item-meta">From: ${escapeHtml(item.from)}</div>
-            <div class="mail-item-meta">Date: ${escapeHtml(formatDisplayTime(item.date))}</div>
-            <div class="mail-item-code">验证码: ${escapeHtml(item.code || "未识别到")}</div>
-          </article>
-        `;
-      }
-
       async function fetchJson(url, options = {}) {
         const response = await fetch(url, options);
         const text = await response.text();
@@ -588,42 +509,9 @@
           emailEl.textContent = data.email || "-";
           passwordEl.textContent = data.gpt_password || "-";
           setStatus(`兑换成功：${data.cdk}`);
-          startMailAutoRefresh();
           savePageState();
-          await loadLatestCode();
         } catch (error) {
           setStatus(error.message, true);
-          savePageState();
-        }
-      }
-
-      async function loadLatestCode(isAutoRefresh = false) {
-        const cdk = cdkInput.value.trim();
-        if (!cdk) {
-          setStatus("请输入 CDK", true);
-          return;
-        }
-
-        if (!isAutoRefresh) {
-          setStatus("正在获取验证码邮件...");
-        }
-        try {
-          const data = await fetchJson("/api/latest-code", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cdk }),
-          });
-          renderLatestMail(data);
-          resetMailCountdown();
-          if (!isAutoRefresh) {
-            setStatus("最新验证码邮件已更新");
-          }
-          savePageState();
-        } catch (error) {
-          if (!isAutoRefresh) {
-            setStatus(error.message, true);
-          }
-          mailRefreshCountdownEl.textContent = "自动刷新中";
           savePageState();
         }
       }

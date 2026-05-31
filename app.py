@@ -291,7 +291,7 @@ def parse_graph_message(message):
         "mailbox": "INBOX",
         "subject": subject_str,
         "from": from_str,
-        "date": date_obj.strftime("%Y-%m-%d %H:%M:%S"),
+        "date": date_obj.isoformat(),
         "code": extract_verification_code(f"{subject_str}\n{body_preview}"),
         "date_obj": date_obj,
     }
