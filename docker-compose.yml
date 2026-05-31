@@ -5,9 +5,8 @@ services:
       dockerfile: Dockerfile
     container_name: cdk-duihuan
     restart: unless-stopped
+    network_mode: host
     env_file:
       - .env
     environment:
       APP_PORT: 5090
-    ports:
-      - "5090:5090"
