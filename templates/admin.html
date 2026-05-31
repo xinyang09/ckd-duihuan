@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>后台导入</title>
+    <style>
+      :root {
+        --bg: #f7efe4;
+        --panel: rgba(255, 250, 242, 0.88);
+        --panel-strong: rgba(255, 255, 255, 0.8);
+        --line: rgba(164, 132, 88, 0.22);
+        --text: #231b12;
+        --muted: #78654d;
+        --accent: #b5532d;
+        --accent-strong: #8d3c1d;
+        --accent-2: #1d5fa8;
+        --accent-2-strong: #164983;
+        --shadow: 0 24px 80px rgba(77, 52, 21, 0.12);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(255, 208, 151, 0.74) 0, transparent 26%),
+          radial-gradient(circle at bottom right, rgba(196, 221, 243, 0.46) 0, transparent 24%),
+          linear-gradient(135deg, #faf4ea, #f0e4d1 48%, #eadcc6);
+        color: var(--text);
+        min-height: 100vh;
+        padding: 28px;
+        overflow: hidden;
+      }
+      .page {
+        width: min(1240px, 100%);
+        margin: 0 auto;
+        height: calc(100vh - 56px);
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid rgba(255,255,255,0.58);
+        border-radius: 28px;
+        padding: 30px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .hero-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(181, 83, 45, 0.1);
+        color: var(--accent-strong);
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 14px;
+      }
+      .admin-layout {
+        display: grid;
+        grid-template-columns: 170px minmax(0, 1fr);
+        gap: 22px;
+        margin-top: 20px;
+        min-height: 0;
+        flex: 1;
+      }
+      .sidebar {
+        background: var(--panel-strong);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 18px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+        height: 100%;
+      }
+      .sidebar-title {
+        margin: 0 0 14px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+      .tabs {
+        display: grid;
+        gap: 10px;
+      }
+      .tab-btn {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 15px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        background: rgba(255,255,255,0.9);
+        color: var(--text);
+        text-align: left;
+        transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+      }
+      .tab-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(164, 132, 88, 0.42);
+        box-shadow: 0 12px 28px rgba(77, 52, 21, 0.08);
+      }
+      .tab-btn.active {
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 14px 30px rgba(181, 83, 45, 0.22);
+      }
+      .tab-btn[data-tab="sms"].active {
+        background: linear-gradient(135deg, var(--accent-2), var(--accent-2-strong));
+        border-color: transparent;
+        box-shadow: 0 14px 30px rgba(29, 95, 168, 0.22);
+      }
+      .tab-panel[hidden] {
+        display: none;
+      }
+      .content {
+        display: grid;
+        gap: 16px;
+        min-height: 0;
+        height: 100%;
+      }
+      .tab-panel {
+        min-height: 0;
+        height: 100%;
+      }
+      h1 { margin: 0 0 8px; font-size: 36px; line-height: 1.04; }
+      h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.1; }
+      p { margin: 0 0 18px; color: var(--muted); line-height: 1.6; font-size: 14px; }
+      textarea, input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        font-size: 13px;
+        background: rgba(255,255,255,0.96);
+        color: var(--text);
+      }
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .split {
+        display: block;
+      }
+      .side-card, .view-card {
+        background: var(--panel-strong);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 20px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+      }
+      .view-card table {
+        margin-top: 12px;
+      }
+      .view-card {
+        height: 100%;
+        overflow: auto;
+        min-height: calc(100vh - 320px);
+      }
+      .section-stack {
+        display: grid;
+        gap: 14px;
+      }
+      .subsection {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 14px;
+        background: rgba(255,255,255,0.62);
+      }
+      .subsection-title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .subsection-note {
+        margin: 6px 0 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      button {
+        margin-top: 12px;
+        border: 0;
+        border-radius: 16px;
+        padding: 12px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        color: white;
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        box-shadow: 0 14px 26px rgba(181, 83, 45, 0.18);
+        transition: transform .16s ease, box-shadow .16s ease;
+      }
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 32px rgba(181, 83, 45, 0.22);
+      }
+      .secondary {
+        background: linear-gradient(135deg, var(--accent-2), var(--accent-2-strong));
+        box-shadow: 0 14px 26px rgba(29, 95, 168, 0.18);
+      }
+      .status {
+        min-height: 24px;
+        margin: 14px 0;
+        color: var(--accent);
+        font-size: 13px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(255,255,255,0.84);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+      th, td {
+        text-align: left;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        background: rgba(255,255,255,0.55);
+      }
+      td {
+        font-size: 13px;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: pre-wrap;
+      }
+      .result-box {
+        margin-top: 12px;
+        min-height: 120px;
+      }
+      .action-list {
+        display: grid;
+        gap: 10px;
+      }
+      .action-btn {
+        width: 100%;
+        margin-top: 0;
+        text-align: left;
+      }
+      .modal[hidden] {
+        display: none;
+      }
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(45, 36, 24, 0.42);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        z-index: 50;
+      }
+      .modal-card {
+        width: min(720px, 100%);
+        background: rgba(255, 250, 242, 0.96);
+        border: 1px solid rgba(255,255,255,0.56);
+        border-radius: 24px;
+        padding: 22px;
+        box-shadow: 0 24px 80px rgba(77, 52, 21, 0.18);
+        backdrop-filter: blur(18px);
+      }
+      .modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .close-btn {
+        margin-top: 0;
+        background: rgba(255,255,255,0.76);
+        color: var(--muted);
+        border: 1px solid var(--line);
+        padding: 8px 12px;
+        box-shadow: none;
+      }
+      @media (max-width: 720px) {
+        .row { grid-template-columns: 1fr; }
+        .split { grid-template-columns: 1fr; }
+        .admin-layout { grid-template-columns: 1fr; }
+        body { overflow: auto; }
+        .page { height: auto; }
+        .card { height: auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="card">
+        <div class="hero-chip">Control Center</div>
+        <h1>后台导入</h1>
+        <p>统一管理邮箱 CDK 和 SMS CDK。左侧选择功能模块，右侧查看导入结果、兑换状态与最近记录。</p>
+
+        <div class="admin-layout">
+          <aside class="sidebar">
+            <div class="sidebar-title">左侧功能</div>
+            <section class="tabs">
+              <button class="tab-btn active" data-tab="mail" type="button">邮箱CDK</button>
+              <button class="tab-btn" data-tab="sms" type="button">SMS CDK</button>
+            </section>
+          </aside>
+
+          <div class="content">
+            <section id="panel-mail" class="tab-panel">
+              <div class="split">
+                <div class="view-card">
+                  <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+                    <h2 style="margin:0;">邮箱CDK查看</h2>
+                    <button id="openMailImportBtn" class="action-btn" type="button" style="width:auto;">导入邮箱账号</button>
+                  </div>
+                  <div class="status" id="status"></div>
+                  <p>右侧实时展示当前已导入的邮箱账号与 CDK 状态。</p>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>CDK</th>
+                        <th>是否兑换</th>
+                        <th>邮箱</th>
+                        <th>GPT 密码</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+            <section id="panel-sms" class="tab-panel" hidden>
+              <div class="split">
+                <div class="view-card">
+                  <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+                    <h2 style="margin:0;">SMS CDK查看</h2>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                      <button class="secondary action-btn" id="openSmsImportBtn" type="button" style="width:auto;">导入手机号</button>
+                    </div>
+                  </div>
+                  <div class="status" id="smsStatus"></div>
+                  <div class="section-stack">
+                    <section class="subsection">
+                      <h3 class="subsection-title">统计</h3>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>统计</th>
+                            <th>数值</th>
+                          </tr>
+                        </thead>
+                        <tbody id="smsStats"></tbody>
+                      </table>
+                    </section>
+
+                    <section class="subsection">
+                      <h3 class="subsection-title">SMS 记录</h3>
+                      <p class="subsection-note">按手机号展示已自动分配的 SMS CDK 和当前兑换状态。</p>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>手机号</th>
+                            <th>SMS CDK</th>
+                            <th>状态</th>
+                            <th>备注</th>
+                            <th>兑换时间</th>
+                            <th>操作</th>
+                          </tr>
+                        </thead>
+                        <tbody id="smsCdks"></tbody>
+                      </table>
+                    </section>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div id="mailImportModal" class="modal" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2>导入邮箱账号</h2>
+          <button class="close-btn" type="button" data-close="mailImportModal">关闭</button>
+        </div>
+        <p>格式：邮箱----邮箱密码/授权码----client_id----refresh_token</p>
+        <textarea id="importLine" placeholder="请输入导入内容"></textarea>
+        <button id="importBtn">导入邮箱账号</button>
+      </div>
+    </div>
+
+    <div id="smsImportModal" class="modal" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2>导入手机号</h2>
+          <button class="close-btn" type="button" data-close="smsImportModal">关闭</button>
+        </div>
+        <p>手机号格式：手机号----上游链接----备注（备注可选）</p>
+        <textarea id="smsLines" placeholder="17819294299----https://example.com/sms/1----OpenAI 专用"></textarea>
+        <button class="secondary" id="smsImportBtn">导入手机号</button>
+      </div>
+    </div>
+
+    <script>
+      const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
+      const tabPanels = {
+        mail: document.getElementById("panel-mail"),
+        sms: document.getElementById("panel-sms"),
+      };
+
+      function switchTab(tab) {
+        tabButtons.forEach((button) => {
+          button.classList.toggle("active", button.dataset.tab === tab);
+        });
+        Object.entries(tabPanels).forEach(([key, panel]) => {
+          panel.hidden = key !== tab;
+        });
+      }
+
+      tabButtons.forEach((button) => {
+        button.addEventListener("click", () => switchTab(button.dataset.tab));
+      });
+
+      const statusEl = document.getElementById("status");
+      const tableBody = document.getElementById("tableBody");
+      const importLineEl = document.getElementById("importLine");
+      const smsStatusEl = document.getElementById("smsStatus");
+      const smsStatsEl = document.getElementById("smsStats");
+      const smsCdksEl = document.getElementById("smsCdks");
+      const mailImportModal = document.getElementById("mailImportModal");
+      const smsImportModal = document.getElementById("smsImportModal");
+
+      function openModal(modal) {
+        modal.hidden = false;
+      }
+
+      function closeModal(modal) {
+        modal.hidden = true;
+      }
+
+      document.getElementById("openMailImportBtn").addEventListener("click", () => openModal(mailImportModal));
+      document.getElementById("openSmsImportBtn").addEventListener("click", () => openModal(smsImportModal));
+
+      document.querySelectorAll("[data-close]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const modal = document.getElementById(button.dataset.close);
+          if (modal) closeModal(modal);
+        });
+      });
+
+      function setStatus(message, isError = false) {
+        statusEl.textContent = message;
+        statusEl.style.color = isError ? "#b42318" : "#a64b2a";
+      }
+
+      function setSmsStatus(message, isError = false) {
+        smsStatusEl.textContent = message;
+        smsStatusEl.style.color = isError ? "#b42318" : "#145b9f";
+      }
+
+      function formatDisplayTime(value) {
+        if (!value) {
+          return "-";
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+          return value;
+        }
+        return new Intl.DateTimeFormat("zh-CN", {
+          timeZone: "Asia/Shanghai",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        }).format(date);
+      }
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, options);
+        const text = await response.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch (error) {
+          throw new Error(`接口返回了非 JSON 内容: ${text.slice(0, 120)}`);
+        }
+        if (!response.ok) {
+          throw new Error(data.error || "请求失败");
+        }
+        return data;
+      }
+
+      async function loadAccounts() {
+        const data = await fetchJson("/api/admin/accounts");
+        tableBody.innerHTML = (data.items || []).map(item => `
+          <tr>
+            <td class="mono">${item.cdk}</td>
+            <td>${item.redeemed ? "已兑换" : "未兑换"}</td>
+            <td>${item.email}</td>
+            <td>${item.gpt_password}</td>
+            <td>${formatDisplayTime(item.created_at)}</td>
+            <td><button type="button" class="delete-account-btn" data-cdk="${item.cdk}" style="margin-top:0;">删除</button></td>
+          </tr>
+        `).join("");
+
+        tableBody.querySelectorAll(".delete-account-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const cdk = button.dataset.cdk;
+            if (!cdk) return;
+            const confirmed = window.confirm(`确认删除 ${cdk} 吗？`);
+            if (!confirmed) return;
+
+            setStatus(`正在删除 ${cdk}...`);
+            try {
+              await fetchJson(`/api/admin/accounts/${encodeURIComponent(cdk)}`, {
+                method: "DELETE",
+              });
+              setStatus(`已删除 ${cdk}`);
+              await loadAccounts();
+            } catch (error) {
+              setStatus(error.message, true);
+            }
+          });
+        });
+      }
+
+      async function loadSmsDashboard() {
+        const [dashboardData, phonesData] = await Promise.all([
+          fetchJson("/api/admin/sms/dashboard"),
+          fetchJson("/api/admin/sms/phones"),
+        ]);
+        const data = dashboardData;
+        const stats = data.stats || {};
+        const phoneMap = new Map((phonesData.items || []).map(item => [item.phone, item]));
+        smsStatsEl.innerHTML = `
+          <tr><td>可分配号码</td><td>${stats.availablePhones || 0}</td></tr>
+          <tr><td>已分配号码</td><td>${stats.assignedPhones || 0}</td></tr>
+          <tr><td>未使用 SMS CDK</td><td>${stats.unusedCdks || 0}</td></tr>
+          <tr><td>已兑换 SMS CDK</td><td>${stats.redeemedCdks || 0}</td></tr>
+        `;
+
+        smsCdksEl.innerHTML = (data.recentCdks || []).map(item => `
+          <tr>
+            <td class="mono">${item.phone || "-"}</td>
+            <td class="mono">${item.code || ""}</td>
+            <td>${item.status || ""}</td>
+            <td>${(phoneMap.get(item.phone || "") || {}).remark || "-"}</td>
+            <td>${formatDisplayTime(item.redeemed_at)}</td>
+            <td><button type="button" class="delete-sms-cdk-btn" data-code="${item.code || ""}" style="margin-top:0;">删除</button></td>
+          </tr>
+        `).join("");
+
+        smsCdksEl.querySelectorAll(".delete-sms-cdk-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const code = button.dataset.code;
+            if (!code) return;
+            const confirmed = window.confirm(`确认删除 SMS CDK ${code} 吗？`);
+            if (!confirmed) return;
+            setSmsStatus(`正在删除 ${code}...`);
+            try {
+              await fetchJson(`/api/admin/sms/cdks/${encodeURIComponent(code)}`, {
+                method: "DELETE",
+              });
+              setSmsStatus(`已删除 ${code}`);
+              await loadSmsDashboard();
+            } catch (error) {
+              setSmsStatus(error.message, true);
+            }
+          });
+        });
+      }
+
+      document.getElementById("importBtn").addEventListener("click", async () => {
+        const line = importLineEl.value.trim();
+        if (!line) {
+          setStatus("请输入导入内容", true);
+          return;
+        }
+        setStatus("正在导入...");
+        try {
+          const data = await fetchJson("/api/admin/import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ line }),
+          });
+          setStatus(`导入成功：${data.cdk} / ${data.email}`);
+          importLineEl.value = "";
+          closeModal(mailImportModal);
+          await loadAccounts();
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      });
+
+      document.getElementById("smsImportBtn").addEventListener("click", async () => {
+        const lines = document.getElementById("smsLines").value.trim();
+        if (!lines) {
+          setSmsStatus("请输入手机号导入内容", true);
+          return;
+        }
+        setSmsStatus("正在导入手机号...");
+        try {
+          const data = await fetchJson("/api/admin/sms/import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lines }),
+          });
+          const codes = Array.isArray(data.codes) ? data.codes.filter(Boolean) : [];
+          const codeText = codes.length ? `，已分配 CDK：${codes.join(" / ")}` : "，没有新增可分配 CDK";
+          setSmsStatus(`导入完成，共 ${data.total} 条，新增 ${data.inserted} 条，更新 ${data.updated} 条${codeText}`);
+          document.getElementById("smsLines").value = "";
+          closeModal(smsImportModal);
+          await loadSmsDashboard();
+          switchTab("sms");
+        } catch (error) {
+          setSmsStatus(error.message, true);
+        }
+      });
+
+      loadAccounts().catch(err => setStatus(err.message, true));
+      loadSmsDashboard().catch(err => setSmsStatus(err.message, true));
+    </script>
+  </body>
+  </html>

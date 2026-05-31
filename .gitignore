@@ -1,0 +1,7 @@
+.env
+.env.local
+.env.*.local
+__pycache__/
+*.pyc
+.DS_Store
+cdk.db
