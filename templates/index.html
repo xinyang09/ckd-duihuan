@@ -221,18 +221,18 @@
       </section>
 
       <section class="tabs">
-        <button class="tab-btn active" data-tab="mail" type="button">邮箱 CDK</button>
-        <button class="tab-btn" data-tab="sms" type="button">SMS CDK</button>
+        <button class="tab-btn active" data-tab="mail" type="button">Plus兑换</button>
+        <button class="tab-btn" data-tab="sms" type="button">接码兑换</button>
       </section>
 
       <section id="panel-mail" class="tab-panel card">
-        <h2>邮箱 CDK</h2>
+        <h2>Plus兑换</h2>
         <p class="muted">输入 GPT 开头的邮箱账号 CDK，获取账号信息和最近验证码邮件。</p>
 
         <div class="row">
           <input id="cdk" placeholder="请输入 GPT CDK" />
           <button class="primary" id="lookupBtn">兑换</button>
-          <button class="secondary" id="codeBtn">获取邮件列表</button>
+          <button class="secondary" id="codeBtn">获取邮件</button>
         </div>
 
         <div class="status" id="status"></div>
@@ -264,11 +264,11 @@
       </section>
 
       <section id="panel-sms" class="tab-panel card" hidden>
-        <h2>SMS CDK</h2>
-        <p class="muted">输入 `SMS-` 开头的 CDK，自动分配手机号并查看验证码取件地址。SMS CDK 和邮箱 CDK 不通用。</p>
+        <h2>接码兑换</h2>
+        <p class="muted">输入 `SMS-` 开头的 CDK，自动分配手机号并查看验证码取件地址。接码兑换 和 Plus兑换 不通用。</p>
 
         <div class="sms-actions">
-          <input id="smsCdk" placeholder="请输入 SMS CDK，例如 SMS-ABC123XYZ9" />
+          <input id="smsCdk" placeholder="请输入接码兑换 CDK，例如 SMS-ABC123XYZ9" />
           <button class="tertiary" id="smsRedeemBtn">兑换 SMS</button>
         </div>
 
@@ -348,6 +348,30 @@
         smsStatusEl.style.color = isError ? "#b42318" : "#145b9f";
       }
 
+      async function copyText(value) {
+        try {
+          await navigator.clipboard.writeText(value);
+          return true;
+        } catch (error) {
+          const textarea = document.createElement("textarea");
+          textarea.value = value;
+          textarea.setAttribute("readonly", "");
+          textarea.style.position = "fixed";
+          textarea.style.left = "-9999px";
+          document.body.appendChild(textarea);
+          textarea.select();
+          textarea.setSelectionRange(0, textarea.value.length);
+          let ok = false;
+          try {
+            ok = document.execCommand("copy");
+          } catch (execError) {
+            ok = false;
+          }
+          document.body.removeChild(textarea);
+          return ok;
+        }
+      }
+
       function savePageState() {
         const activeTab = tabButtons.find((button) => button.classList.contains("active"))?.dataset.tab || "mail";
         const state = {
@@ -420,7 +444,10 @@
           return;
         }
         try {
-          await navigator.clipboard.writeText(value);
+          const ok = await copyText(value);
+          if (!ok) {
+            throw new Error("copy failed");
+          }
           panel.classList.add("copied");
           setStatus(`已复制${label}`);
           savePageState();
@@ -558,7 +585,7 @@
       async function redeemSms() {
         const cdk = smsCdkInput.value.trim();
         if (!cdk) {
-          setSmsStatus("请输入 SMS CDK", true);
+          setSmsStatus("请输入接码兑换 CDK", true);
           return;
         }
 
@@ -576,7 +603,7 @@
           smsPickupUrlEl.textContent = data.pickupUrl || "-";
           smsPickupUrlEl.href = data.pickupUrl || "#";
           smsToken = data.pickupToken || "";
-          setSmsStatus(data.mode === "existing" ? "这个 SMS CDK 已兑换过，已返回原手机号" : "SMS CDK 兑换成功");
+          setSmsStatus(data.mode === "existing" ? "这个接码兑换 CDK 已兑换过，已返回原手机号" : "接码兑换成功");
           await refreshSmsCode();
           if (smsPollingTimer) {
             clearInterval(smsPollingTimer);
