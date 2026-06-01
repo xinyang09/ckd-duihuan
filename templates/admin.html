@@ -202,8 +202,8 @@
         margin-top: 12px;
         border: 0;
         border-radius: 16px;
-        padding: 12px 18px;
-        font-size: 14px;
+        padding: 10px 16px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         color: white;
@@ -272,6 +272,39 @@
         padding: 8px 12px;
         font-size: 12px;
         border-radius: 12px;
+      }
+      .action-cell {
+        white-space: nowrap;
+      }
+      .table-action-btn {
+        margin-top: 0;
+        padding: 6px 10px;
+        font-size: 11px;
+        line-height: 1.1;
+        border-radius: 10px;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+      }
+      .table-action-btn + .table-action-btn {
+        margin-left: 6px;
+      }
+      .state-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 64px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .state-on {
+        color: #0f5132;
+        background: rgba(25, 135, 84, 0.14);
+      }
+      .state-off {
+        color: #6c757d;
+        background: rgba(108, 117, 125, 0.12);
       }
       .compact-btn + .compact-btn {
         margin-left: 8px;
@@ -602,30 +635,28 @@
           <tr>
             <td><input type="checkbox" class="account-checkbox" data-cdk="${item.cdk}" /></td>
             <td class="mono">${item.cdk}</td>
-            <td>${item.redeemed ? "已兑换" : "未兑换"}</td>
+            <td><span class="state-pill ${item.redeemed ? "state-on" : "state-off"}">${item.redeemed ? "已兑换" : "未兑换"}</span></td>
             <td>${formatDisplayTime(item.redeemed_at)}</td>
-            <td>${item.sold ? "已出售" : "未出售"}</td>
+            <td><span class="state-pill ${item.sold ? "state-on" : "state-off"}">${item.sold ? "已出售" : "未出售"}</span></td>
             <td>${item.email}</td>
             <td>${item.gpt_password}</td>
             <td>${formatDisplayTime(item.created_at)}</td>
-            <td>
+            <td class="action-cell">
               <button
                 type="button"
-                class="copy-cdk-btn"
+                class="copy-cdk-btn table-action-btn"
                 data-cdk="${item.cdk || ""}"
-                style="margin-top:0; margin-right:8px;"
               >复制CDK</button>
               <button
                 type="button"
-                class="copy-account-btn"
+                class="copy-account-btn table-action-btn"
                 data-email="${item.email || ""}"
                 data-email-password="${item.email_password || ""}"
                 data-client-id="${item.client_id || ""}"
                 data-refresh-token="${item.refresh_token || ""}"
                 data-gpt-password="${item.gpt_password || ""}"
-                style="margin-top:0; margin-right:8px;"
               >复制CDK并出售</button>
-              <button type="button" class="delete-account-btn" data-cdk="${item.cdk}" style="margin-top:0;">删除</button>
+              <button type="button" class="delete-account-btn table-action-btn" data-cdk="${item.cdk}">删除</button>
             </td>
           </tr>
         `).join("");
@@ -642,7 +673,7 @@
         tableBody.querySelectorAll(".copy-account-btn").forEach((button) => {
           button.addEventListener("click", async () => {
             const cdk = button.closest("tr")?.querySelector(".copy-cdk-btn")?.dataset.cdk || "";
-            const text = `【邮箱信息】${button.dataset.email || ""}----${button.dataset.emailPassword || ""}----${button.dataset.clientId || ""}----${button.dataset.refreshToken || ""} | 【GPT密码】${button.dataset.gptPassword || ""} | 【验证码获取连接】https://app.98faka.top/`;
+            const text = `CDK：${cdk}\n兑换地址：http://cdk.jijie.chat/`;
             const ok = await copyText(text);
             if (!ok) {
               setStatus("复制失败", true);
@@ -689,11 +720,9 @@
             setStatus("请先选择要复制的账号", true);
             return;
           }
-          const text = rows.map((row) =>
-            `【邮箱信息】${row.email}----${row.emailPassword}----${row.clientId}----${row.refreshToken} | 【GPT密码】${row.gptPassword} | 【验证码获取连接】https://app.98faka.top/`
-          ).join("\n");
+          const text = rows.map((row) => `CDK：${row.cdk}`).join("\n");
           const ok = await copyText(text);
-          setStatus(ok ? `已复制 ${rows.length} 条邮箱信息` : "批量复制失败", !ok);
+          setStatus(ok ? `已复制 ${rows.length} 条CDK` : "批量复制失败", !ok);
         };
 
         batchDeleteBtn.onclick = async () => {
@@ -761,7 +790,7 @@
             <td>${item.status || ""}</td>
             <td>${(phoneMap.get(item.phone || "") || {}).remark || "-"}</td>
             <td>${formatDisplayTime(item.redeemed_at)}</td>
-            <td><button type="button" class="delete-sms-cdk-btn" data-code="${item.code || ""}" style="margin-top:0;">删除</button></td>
+            <td class="action-cell"><button type="button" class="delete-sms-cdk-btn table-action-btn" data-code="${item.code || ""}">删除</button></td>
           </tr>
         `).join("");
 
