@@ -118,11 +118,31 @@ def init_db():
                     client_id VARCHAR(255),
                     gpt_password VARCHAR(255) NOT NULL,
                     redeemed TINYINT(1) DEFAULT 0,
+                    sold TINYINT(1) DEFAULT 0,
+                    redeemed_at TIMESTAMP NULL DEFAULT NULL,
                     refresh_token TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """
             )
+            cursor.execute(f"SHOW COLUMNS FROM `{TABLE_NAME}`")
+            account_columns = {row["Field"] for row in cursor.fetchall()}
+            if "email_password" not in account_columns:
+                cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN email_password TEXT")
+            if "client_id" not in account_columns:
+                cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN client_id VARCHAR(255)")
+            if "gpt_password" not in account_columns:
+                cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN gpt_password VARCHAR(255) NOT NULL DEFAULT 'Jijie@123456'")
+            if "redeemed" not in account_columns:
+                cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN redeemed TINYINT(1) DEFAULT 0")
+            if "sold" not in account_columns:
+                cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN sold TINYINT(1) DEFAULT 0")
+            if "redeemed_at" not in account_columns:
+                cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN redeemed_at TIMESTAMP NULL DEFAULT NULL")
+            if "refresh_token" not in account_columns:
+                cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN refresh_token TEXT NOT NULL")
+            if "created_at" not in account_columns:
+                cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
             cursor.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS `{SMS_PHONE_TABLE}` (
@@ -340,8 +360,23 @@ def mark_account_redeemed(cdk):
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute(f"UPDATE `{TABLE_NAME}` SET redeemed = 1 WHERE cdk = %s", (cdk,))
+            cursor.execute(
+                f"UPDATE `{TABLE_NAME}` SET redeemed = 1, redeemed_at = NOW() WHERE cdk = %s",
+                (cdk,),
+            )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def mark_account_sold(cdk):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(f"UPDATE `{TABLE_NAME}` SET sold = 1 WHERE cdk = %s", (cdk,))
+            deleted = cursor.rowcount
+        conn.commit()
+        return deleted
     finally:
         conn.close()
 
@@ -352,7 +387,7 @@ def list_accounts():
         with conn.cursor() as cursor:
             cursor.execute(
                 f"""
-                SELECT cdk, email, gpt_password, redeemed, created_at
+                SELECT cdk, email, email_password, client_id, gpt_password, refresh_token, redeemed, sold, redeemed_at, created_at
                 FROM `{TABLE_NAME}`
                 ORDER BY id DESC
                 """
@@ -374,37 +409,58 @@ def delete_account(cdk):
         conn.close()
 
 
-def import_account_line(raw_line):
-    parts = [part.strip() for part in raw_line.strip().split("----")]
-    if len(parts) != 4:
-        raise ValueError("格式错误，必须为 邮箱----邮箱密码/授权码----client_id----refresh_token")
+def import_account_lines(raw_lines):
+    rows = []
+    for line in raw_lines.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = [part.strip() for part in line.split("----")]
+        if len(parts) != 4:
+            raise ValueError("格式错误，必须为 邮箱----邮箱密码/授权码----client_id----refresh_token")
+        rows.append(parts)
 
-    email, email_password, client_id, refresh_token = parts
+    if not rows:
+        raise ValueError("没有可导入的邮箱账号")
+
     conn = get_db_connection()
+    inserted = 0
+    updated = 0
+    results = []
     try:
         with conn.cursor() as cursor:
-            cursor.execute(f"SELECT cdk FROM `{TABLE_NAME}` WHERE lower(email)=lower(%s)", (email,))
-            existing = cursor.fetchone()
-            if existing:
-                raise ValueError(f"该邮箱已导入，现有 CDK: {existing['cdk']}")
+            for email, email_password, client_id, refresh_token in rows:
+                cursor.execute(f"SELECT cdk FROM `{TABLE_NAME}` WHERE lower(email)=lower(%s)", (email,))
+                existing = cursor.fetchone()
+                if existing:
+                    updated += 1
+                    results.append({"email": email, "status": "skipped", "cdk": existing["cdk"]})
+                    continue
 
-            cdk = generate_unique_cdk(prefix="GPT", length=12, table=TABLE_NAME, field="cdk")
-            cursor.execute(
-                f"""
-                INSERT INTO `{TABLE_NAME}` (cdk, email, email_password, client_id, gpt_password, refresh_token)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    cdk,
-                    email,
-                    email_password,
-                    client_id,
-                    os.getenv("DEFAULT_GPT_PASSWORD", "Jijie@123456"),
-                    refresh_token,
-                ),
-            )
+                cdk = generate_unique_cdk(prefix="GPT", length=12, table=TABLE_NAME, field="cdk")
+                cursor.execute(
+                    f"""
+                    INSERT INTO `{TABLE_NAME}` (cdk, email, email_password, client_id, gpt_password, refresh_token)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        cdk,
+                        email,
+                        email_password,
+                        client_id,
+                        os.getenv("DEFAULT_GPT_PASSWORD", "Jijie@123456"),
+                        refresh_token,
+                    ),
+                )
+                inserted += 1
+                results.append({"email": email, "status": "inserted", "cdk": cdk})
         conn.commit()
-        return {"cdk": cdk, "email": email}
+        return {
+            "total": len(rows),
+            "inserted": inserted,
+            "updated": updated,
+            "items": results,
+        }
     finally:
         conn.close()
 
@@ -906,17 +962,59 @@ def admin_delete_account(cdk):
     return jsonify({"deleted": True, "cdk": cdk})
 
 
+@app.route("/api/admin/accounts/<cdk>/sell", methods=["POST"])
+def admin_sell_account(cdk):
+    guard = require_admin_api()
+    if guard:
+        return guard
+    try:
+        deleted = mark_account_sold(cdk)
+    except Exception as exc:
+        return jsonify({"error": f"标记出售失败: {exc}"}), 500
+    if not deleted:
+        return jsonify({"error": "未找到对应账号"}), 404
+    return jsonify({"sold": True, "cdk": cdk})
+
+
+@app.route("/api/admin/accounts/bulk-delete", methods=["POST"])
+def admin_bulk_delete_accounts():
+    guard = require_admin_api()
+    if guard:
+        return guard
+    data = request.get_json(silent=True) or {}
+    cdks = data.get("cdks") or []
+    if not isinstance(cdks, list) or not cdks:
+        return jsonify({"error": "请先选择要删除的账号"}), 400
+
+    deleted = 0
+    skipped = []
+    for cdk in cdks:
+        cdk = (cdk or "").strip()
+        if not cdk:
+            continue
+        try:
+            count = delete_account(cdk)
+            if count:
+                deleted += 1
+            else:
+                skipped.append(cdk)
+        except Exception:
+            skipped.append(cdk)
+
+    return jsonify({"deleted": deleted, "skipped": skipped})
+
+
 @app.route("/api/admin/import", methods=["POST"])
 def admin_import():
     guard = require_admin_api()
     if guard:
         return guard
     data = request.get_json(silent=True) or {}
-    raw_line = (data.get("line") or "").strip()
-    if not raw_line:
+    raw_lines = (data.get("lines") or data.get("line") or "").strip()
+    if not raw_lines:
         return jsonify({"error": "导入内容不能为空"}), 400
     try:
-        result = import_account_line(raw_line)
+        result = import_account_lines(raw_lines)
         return jsonify(result)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400

@@ -167,6 +167,12 @@
         overflow: auto;
         min-height: calc(100vh - 320px);
       }
+      .table-scroll {
+        margin-top: 12px;
+        max-height: calc(100vh - 430px);
+        overflow: auto;
+        border-radius: 18px;
+      }
       .section-stack {
         display: grid;
         gap: 14px;
@@ -304,9 +310,7 @@
   <body>
     <main class="page">
       <div class="card">
-        <div class="hero-chip">Control Center</div>
         <h1>后台导入</h1>
-        <p>统一管理邮箱 CDK 和 SMS CDK。左侧选择功能模块，右侧查看导入结果、兑换状态与最近记录。</p>
 
         <div class="admin-layout">
           <aside class="sidebar">
@@ -326,21 +330,30 @@
                     <button id="openMailImportBtn" class="action-btn" type="button" style="width:auto;">导入邮箱账号</button>
                   </div>
                   <div class="status" id="status"></div>
-                  <p>右侧实时展示当前已导入的邮箱账号与 CDK 状态。</p>
                   <div class="subsection-note" id="mailCountMeta">当前共 0 条</div>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>CDK</th>
-                        <th>是否兑换</th>
-                        <th>邮箱</th>
-                        <th>GPT 密码</th>
-                        <th>创建时间</th>
-                        <th>操作</th>
-                      </tr>
-                    </thead>
-                    <tbody id="tableBody"></tbody>
-                  </table>
+                  <div class="subsection-note" id="mailSelectedMeta">已选中 0 条</div>
+                  <div style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 6px;">
+                    <button type="button" class="secondary action-btn" id="batchCopyBtn" style="width:auto;">批量复制</button>
+                    <button type="button" class="action-btn" id="batchDeleteBtn" style="width:auto;">批量删除</button>
+                  </div>
+                  <div class="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th><input type="checkbox" id="selectAllAccounts" /></th>
+                          <th>CDK</th>
+                          <th>是否兑换</th>
+                          <th>兑换时间</th>
+                          <th>是否出售</th>
+                          <th>邮箱</th>
+                          <th>GPT 密码</th>
+                          <th>创建时间</th>
+                          <th>操作</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tableBody"></tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </section>
@@ -358,33 +371,37 @@
                   <div class="section-stack">
                     <section class="subsection">
                       <h3 class="subsection-title">统计</h3>
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>统计</th>
-                            <th>数值</th>
-                          </tr>
-                        </thead>
-                        <tbody id="smsStats"></tbody>
-                      </table>
+                      <div class="table-scroll" style="max-height: 220px;">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>统计</th>
+                              <th>数值</th>
+                            </tr>
+                          </thead>
+                          <tbody id="smsStats"></tbody>
+                        </table>
+                      </div>
                     </section>
 
                     <section class="subsection">
                       <h3 class="subsection-title">SMS 记录</h3>
                       <p class="subsection-note">按手机号展示已自动分配的 SMS CDK 和当前兑换状态。</p>
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>手机号</th>
-                            <th>SMS CDK</th>
-                            <th>状态</th>
-                            <th>备注</th>
-                            <th>兑换时间</th>
-                            <th>操作</th>
-                          </tr>
-                        </thead>
-                        <tbody id="smsCdks"></tbody>
-                      </table>
+                      <div class="table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>手机号</th>
+                              <th>SMS CDK</th>
+                              <th>状态</th>
+                              <th>备注</th>
+                              <th>兑换时间</th>
+                              <th>操作</th>
+                            </tr>
+                          </thead>
+                          <tbody id="smsCdks"></tbody>
+                        </table>
+                      </div>
                     </section>
                   </div>
                 </div>
@@ -401,8 +418,8 @@
           <h2>导入邮箱账号</h2>
           <button class="close-btn" type="button" data-close="mailImportModal">关闭</button>
         </div>
-        <p>格式：邮箱----邮箱密码/授权码----client_id----refresh_token</p>
-        <textarea id="importLine" placeholder="请输入导入内容"></textarea>
+        <p>多行格式：每行一个账号，邮箱----邮箱密码/授权码----client_id----refresh_token</p>
+        <textarea id="importLine" placeholder="请输入多行导入内容"></textarea>
         <button id="importBtn">导入邮箱账号</button>
       </div>
     </div>
@@ -441,6 +458,10 @@
 
       const statusEl = document.getElementById("status");
       const mailCountMetaEl = document.getElementById("mailCountMeta");
+      const mailSelectedMetaEl = document.getElementById("mailSelectedMeta");
+      const selectAllAccountsEl = document.getElementById("selectAllAccounts");
+      const batchCopyBtn = document.getElementById("batchCopyBtn");
+      const batchDeleteBtn = document.getElementById("batchDeleteBtn");
       const tableBody = document.getElementById("tableBody");
       const importLineEl = document.getElementById("importLine");
       const smsStatusEl = document.getElementById("smsStatus");
@@ -477,6 +498,23 @@
         smsStatusEl.style.color = isError ? "#b42318" : "#145b9f";
       }
 
+      function getSelectedAccountRows() {
+        return Array.from(tableBody.querySelectorAll(".account-checkbox:checked"))
+          .map((checkbox) => {
+            const cdk = checkbox.dataset.cdk || "";
+            const row = checkbox.closest("tr");
+            return {
+              cdk,
+              email: row?.children?.[3]?.textContent?.trim() || "",
+              emailPassword: row?.querySelector(".copy-account-btn")?.dataset.emailPassword || "",
+              clientId: row?.querySelector(".copy-account-btn")?.dataset.clientId || "",
+              refreshToken: row?.querySelector(".copy-account-btn")?.dataset.refreshToken || "",
+              gptPassword: row?.querySelector(".copy-account-btn")?.dataset.gptPassword || "",
+            };
+          })
+          .filter((item) => item.cdk);
+      }
+
       function formatDisplayTime(value) {
         if (!value) {
           return "-";
@@ -495,6 +533,30 @@
           second: "2-digit",
           hour12: false,
         }).format(date);
+      }
+
+      async function copyText(value) {
+        try {
+          await navigator.clipboard.writeText(value);
+          return true;
+        } catch (error) {
+          const textarea = document.createElement("textarea");
+          textarea.value = value;
+          textarea.setAttribute("readonly", "");
+          textarea.style.position = "fixed";
+          textarea.style.left = "-9999px";
+          document.body.appendChild(textarea);
+          textarea.select();
+          textarea.setSelectionRange(0, textarea.value.length);
+          let ok = false;
+          try {
+            ok = document.execCommand("copy");
+          } catch (execError) {
+            ok = false;
+          }
+          document.body.removeChild(textarea);
+          return ok;
+        }
       }
 
       async function fetchJson(url, options = {}) {
@@ -519,16 +581,127 @@
       async function loadAccounts() {
         const data = await fetchJson("/api/admin/accounts");
         mailCountMetaEl.textContent = `当前共 ${(data.items || []).length} 条`;
+        mailSelectedMetaEl.textContent = "已选中 0 条";
+        selectAllAccountsEl.checked = false;
         tableBody.innerHTML = (data.items || []).map(item => `
           <tr>
+            <td><input type="checkbox" class="account-checkbox" data-cdk="${item.cdk}" /></td>
             <td class="mono">${item.cdk}</td>
             <td>${item.redeemed ? "已兑换" : "未兑换"}</td>
+            <td>${formatDisplayTime(item.redeemed_at)}</td>
+            <td>${item.sold ? "已出售" : "未出售"}</td>
             <td>${item.email}</td>
             <td>${item.gpt_password}</td>
             <td>${formatDisplayTime(item.created_at)}</td>
-            <td><button type="button" class="delete-account-btn" data-cdk="${item.cdk}" style="margin-top:0;">删除</button></td>
+            <td>
+              <button
+                type="button"
+                class="copy-cdk-btn"
+                data-cdk="${item.cdk || ""}"
+                style="margin-top:0; margin-right:8px;"
+              >复制CDK</button>
+              <button
+                type="button"
+                class="copy-account-btn"
+                data-email="${item.email || ""}"
+                data-email-password="${item.email_password || ""}"
+                data-client-id="${item.client_id || ""}"
+                data-refresh-token="${item.refresh_token || ""}"
+                data-gpt-password="${item.gpt_password || ""}"
+                style="margin-top:0; margin-right:8px;"
+              >复制CDK并出售</button>
+              <button type="button" class="delete-account-btn" data-cdk="${item.cdk}" style="margin-top:0;">删除</button>
+            </td>
           </tr>
         `).join("");
+
+        tableBody.querySelectorAll(".copy-cdk-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const cdk = button.dataset.cdk || "";
+            if (!cdk) return;
+            const ok = await copyText(cdk);
+            setStatus(ok ? "已复制CDK" : "复制失败", !ok);
+          });
+        });
+
+        tableBody.querySelectorAll(".copy-account-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const cdk = button.closest("tr")?.querySelector(".copy-cdk-btn")?.dataset.cdk || "";
+            const text = `【邮箱信息】${button.dataset.email || ""}----${button.dataset.emailPassword || ""}----${button.dataset.clientId || ""}----${button.dataset.refreshToken || ""} | 【GPT密码】${button.dataset.gptPassword || ""} | 【验证码获取连接】https://app.98faka.top/`;
+            const ok = await copyText(text);
+            if (!ok) {
+              setStatus("复制失败", true);
+              return;
+            }
+            if (cdk) {
+              try {
+                await fetchJson(`/api/admin/accounts/${encodeURIComponent(cdk)}/sell`, {
+                  method: "POST",
+                });
+                setStatus("已复制CDK并标记为已出售");
+                await loadAccounts();
+              } catch (error) {
+                setStatus(error.message, true);
+              }
+            } else {
+              setStatus("已复制邮箱完整信息");
+            }
+          });
+        });
+
+        const updateSelectedCount = () => {
+          const checkboxes = Array.from(tableBody.querySelectorAll(".account-checkbox"));
+          const checkedCount = checkboxes.filter((box) => box.checked).length;
+          mailSelectedMetaEl.textContent = `已选中 ${checkedCount} 条`;
+          selectAllAccountsEl.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+        };
+
+        tableBody.querySelectorAll(".account-checkbox").forEach((checkbox) => {
+          checkbox.addEventListener("change", updateSelectedCount);
+        });
+
+        selectAllAccountsEl.onchange = () => {
+          const checked = selectAllAccountsEl.checked;
+          tableBody.querySelectorAll(".account-checkbox").forEach((checkbox) => {
+            checkbox.checked = checked;
+          });
+          updateSelectedCount();
+        };
+
+        batchCopyBtn.onclick = async () => {
+          const rows = getSelectedAccountRows();
+          if (!rows.length) {
+            setStatus("请先选择要复制的账号", true);
+            return;
+          }
+          const text = rows.map((row) =>
+            `【邮箱信息】${row.email}----${row.emailPassword}----${row.clientId}----${row.refreshToken} | 【GPT密码】${row.gptPassword} | 【验证码获取连接】https://app.98faka.top/`
+          ).join("\n");
+          const ok = await copyText(text);
+          setStatus(ok ? `已复制 ${rows.length} 条邮箱信息` : "批量复制失败", !ok);
+        };
+
+        batchDeleteBtn.onclick = async () => {
+          const rows = getSelectedAccountRows();
+          if (!rows.length) {
+            setStatus("请先选择要删除的账号", true);
+            return;
+          }
+          const confirmed = window.confirm(`确认删除选中的 ${rows.length} 条账号吗？`);
+          if (!confirmed) return;
+          setStatus(`正在删除 ${rows.length} 条账号...`);
+          try {
+            const result = await fetchJson("/api/admin/accounts/bulk-delete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ cdks: rows.map((row) => row.cdk) }),
+            });
+            setStatus(`已删除 ${result.deleted || 0} 条，跳过 ${Array.isArray(result.skipped) ? result.skipped.length : 0} 条`);
+            await loadAccounts();
+          } catch (error) {
+            setStatus(error.message, true);
+          }
+        };
 
         tableBody.querySelectorAll(".delete-account-btn").forEach((button) => {
           button.addEventListener("click", async () => {
@@ -598,8 +771,8 @@
       }
 
       document.getElementById("importBtn").addEventListener("click", async () => {
-        const line = importLineEl.value.trim();
-        if (!line) {
+        const lines = importLineEl.value.trim();
+        if (!lines) {
           setStatus("请输入导入内容", true);
           return;
         }
@@ -608,9 +781,11 @@
           const data = await fetchJson("/api/admin/import", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ line }),
+            body: JSON.stringify({ lines }),
           });
-          setStatus(`导入成功：${data.cdk} / ${data.email}`);
+          const list = Array.isArray(data.items) ? data.items : [];
+          const cdkList = list.map((item) => item.cdk).filter(Boolean).join(" / ");
+          setStatus(`导入完成，共 ${data.total || 0} 条，新增 ${data.inserted || 0} 条，跳过 ${data.updated || 0} 条${cdkList ? `，CDK：${cdkList}` : ""}`);
           importLineEl.value = "";
           closeModal(mailImportModal);
           await loadAccounts();
