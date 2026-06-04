@@ -18,6 +18,7 @@ GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 TABLE_NAME = os.getenv("CDK_TABLE_NAME", "cdk_accounts")
 SMS_PHONE_TABLE = os.getenv("SMS_PHONE_TABLE", "sms_phone_pool")
 SMS_CDK_TABLE = os.getenv("SMS_CDK_TABLE", "sms_cdks")
+MAILBOX_LIBRARY_TABLE = os.getenv("MAILBOX_LIBRARY_TABLE", "mailbox_library")
 APP_PORT = int(os.getenv("APP_PORT", "5090"))
 RECENT_MINUTES = int(os.getenv("RECENT_MINUTES", "30"))
 
@@ -86,10 +87,15 @@ def get_db_connection(database_required=True):
         "charset": "utf8mb4",
         "cursorclass": pymysql.cursors.DictCursor,
         "autocommit": False,
+        "connect_timeout": 10,
+        "read_timeout": 30,
+        "write_timeout": 30,
     }
     if database_required:
         kwargs["database"] = os.getenv("MYSQL_DATABASE", "cdk_mail")
-    return pymysql.connect(**kwargs)
+    conn = pymysql.connect(**kwargs)
+    conn.ping(reconnect=True)
+    return conn
 
 
 def init_db():
@@ -168,6 +174,18 @@ def init_db():
                 )
                 """
             )
+            cursor.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS `{MAILBOX_LIBRARY_TABLE}` (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    email_password TEXT,
+                    client_id VARCHAR(255),
+                    refresh_token TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
             cursor.execute(f"SHOW COLUMNS FROM `{SMS_PHONE_TABLE}`")
             sms_phone_columns = {row["Field"] for row in cursor.fetchall()}
             if "upstream_url" not in sms_phone_columns:
@@ -191,6 +209,17 @@ def init_db():
                 cursor.execute(f"ALTER TABLE `{SMS_CDK_TABLE}` ADD COLUMN redeemed_at TIMESTAMP NULL DEFAULT NULL")
             if "created_at" not in sms_cdk_columns:
                 cursor.execute(f"ALTER TABLE `{SMS_CDK_TABLE}` ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+
+            cursor.execute(f"SHOW COLUMNS FROM `{MAILBOX_LIBRARY_TABLE}`")
+            mailbox_columns = {row["Field"] for row in cursor.fetchall()}
+            if "email_password" not in mailbox_columns:
+                cursor.execute(f"ALTER TABLE `{MAILBOX_LIBRARY_TABLE}` ADD COLUMN email_password TEXT")
+            if "client_id" not in mailbox_columns:
+                cursor.execute(f"ALTER TABLE `{MAILBOX_LIBRARY_TABLE}` ADD COLUMN client_id VARCHAR(255)")
+            if "refresh_token" not in mailbox_columns:
+                cursor.execute(f"ALTER TABLE `{MAILBOX_LIBRARY_TABLE}` ADD COLUMN refresh_token TEXT NOT NULL")
+            if "created_at" not in mailbox_columns:
+                cursor.execute(f"ALTER TABLE `{MAILBOX_LIBRARY_TABLE}` ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
         conn.commit()
     finally:
         conn.close()
@@ -322,7 +351,7 @@ def filter_recent_items(items, minutes=RECENT_MINUTES):
     return [item for item in items if item.get("date_obj") and item["date_obj"] >= cutoff]
 
 
-def fetch_all_emails(email_address, refresh_token, client_id, max_per_mailbox=100):
+def fetch_all_emails(email_address, refresh_token, client_id, max_per_mailbox=100, apply_recent_limit=True):
     graph_result = fetch_graph_access_token(refresh_token, client_id or DEFAULT_CLIENT_ID)
     access_token = graph_result.get("access_token")
     scope = graph_result.get("scope", "")
@@ -332,7 +361,8 @@ def fetch_all_emails(email_address, refresh_token, client_id, max_per_mailbox=10
     raw_messages = fetch_graph_messages(access_token, max_items=max_per_mailbox)
     found_items = [parse_graph_message(message) for message in raw_messages]
     found_items.sort(key=lambda x: x["date_obj"], reverse=True)
-    found_items = filter_recent_items(found_items)
+    if apply_recent_limit:
+        found_items = filter_recent_items(found_items)
     for item in found_items:
         item.pop("date_obj", None)
     return found_items
@@ -465,6 +495,40 @@ def import_account_lines(raw_lines):
         conn.close()
 
 
+def add_mailbox_to_account_inventory(mailbox_id):
+    mailbox = get_mailbox_library_item(mailbox_id)
+    if not mailbox:
+        raise ValueError("未找到对应邮箱")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT cdk FROM `{TABLE_NAME}` WHERE lower(email)=lower(%s)", (mailbox["email"],))
+            existing = cursor.fetchone()
+            if existing:
+                return {"status": "exists", "cdk": existing["cdk"], "email": mailbox["email"]}
+
+            cdk = generate_unique_cdk(prefix="GPT", length=12, table=TABLE_NAME, field="cdk")
+            cursor.execute(
+                f"""
+                INSERT INTO `{TABLE_NAME}` (cdk, email, email_password, client_id, gpt_password, refresh_token)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    cdk,
+                    mailbox["email"],
+                    mailbox.get("email_password") or "",
+                    mailbox.get("client_id") or DEFAULT_CLIENT_ID,
+                    os.getenv("DEFAULT_GPT_PASSWORD", "Jijie@123456"),
+                    mailbox["refresh_token"],
+                ),
+            )
+        conn.commit()
+        return {"status": "inserted", "cdk": cdk, "email": mailbox["email"]}
+    finally:
+        conn.close()
+
+
 def import_sms_lines(raw_lines):
     rows = []
     for line in raw_lines.splitlines():
@@ -531,6 +595,129 @@ def import_sms_lines(raw_lines):
         }
     finally:
         conn.close()
+
+
+def import_mailbox_library_lines(raw_lines):
+    rows = []
+    for line in raw_lines.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = [part.strip() for part in line.split("----")]
+        if len(parts) != 4:
+            raise ValueError("格式错误，必须为 邮箱----邮箱密码/授权码----client_id----refresh_token")
+        rows.append(parts)
+
+    if not rows:
+        raise ValueError("没有可导入的邮箱")
+
+    conn = get_db_connection()
+    inserted = 0
+    updated = 0
+    try:
+        with conn.cursor() as cursor:
+            for email, email_password, client_id, refresh_token in rows:
+                cursor.execute(f"SELECT id FROM `{MAILBOX_LIBRARY_TABLE}` WHERE lower(email)=lower(%s)", (email,))
+                existing = cursor.fetchone()
+                if existing:
+                    cursor.execute(
+                        f"""
+                        UPDATE `{MAILBOX_LIBRARY_TABLE}`
+                        SET email_password=%s, client_id=%s, refresh_token=%s
+                        WHERE id=%s
+                        """,
+                        (email_password, client_id, refresh_token, existing["id"]),
+                    )
+                    updated += 1
+                    continue
+                cursor.execute(
+                    f"""
+                    INSERT INTO `{MAILBOX_LIBRARY_TABLE}` (email, email_password, client_id, refresh_token)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (email, email_password, client_id, refresh_token),
+                )
+                inserted += 1
+        conn.commit()
+        return {"total": len(rows), "inserted": inserted, "updated": updated}
+    finally:
+        conn.close()
+
+
+def list_mailbox_library():
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT
+                    m.id,
+                    m.email,
+                    m.email_password,
+                    m.client_id,
+                    m.refresh_token,
+                    m.created_at,
+                    a.cdk AS stocked_cdk
+                FROM `{MAILBOX_LIBRARY_TABLE}` m
+                LEFT JOIN `{TABLE_NAME}` a ON lower(a.email) = lower(m.email)
+                ORDER BY m.id DESC
+                """
+            )
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+
+def get_mailbox_library_item(mailbox_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT id, email, email_password, client_id, refresh_token, created_at
+                FROM `{MAILBOX_LIBRARY_TABLE}`
+                WHERE id=%s
+                """,
+                (mailbox_id,),
+            )
+            return cursor.fetchone()
+    finally:
+        conn.close()
+
+
+def delete_mailbox_library_item(mailbox_id):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(f"DELETE FROM `{MAILBOX_LIBRARY_TABLE}` WHERE id=%s", (mailbox_id,))
+            deleted = cursor.rowcount
+        conn.commit()
+        return deleted
+    finally:
+        conn.close()
+
+
+def fetch_mailbox_library_emails(mailbox_id):
+    mailbox = get_mailbox_library_item(mailbox_id)
+    if not mailbox:
+        raise ValueError("未找到对应邮箱")
+
+    mails = fetch_all_emails(
+        mailbox["email"],
+        mailbox["refresh_token"],
+        mailbox.get("client_id") or DEFAULT_CLIENT_ID,
+        max_per_mailbox=100,
+        apply_recent_limit=False,
+    )
+    return {
+        "mailbox": {
+            "id": mailbox["id"],
+            "email": mailbox["email"],
+            "created_at": mailbox["created_at"],
+        },
+        "items": mails,
+        "count": len(mails),
+    }
 
 
 def generate_sms_cdks(count, batch_name, prefix, length):
@@ -1111,6 +1298,76 @@ def admin_delete_sms_phone(phone):
     if not deleted:
         return jsonify({"error": "未找到对应手机号"}), 404
     return jsonify({"deleted": True, "phone": phone})
+
+
+@app.route("/api/admin/mailboxes", methods=["GET"])
+def admin_mailboxes():
+    guard = require_admin_api()
+    if guard:
+        return guard
+    try:
+        return jsonify({"items": list_mailbox_library()})
+    except Exception as exc:
+        return jsonify({"error": f"读取邮箱库失败: {exc}"}), 500
+
+
+@app.route("/api/admin/mailboxes/import", methods=["POST"])
+def admin_mailboxes_import():
+    guard = require_admin_api()
+    if guard:
+        return guard
+    data = request.get_json(silent=True) or {}
+    lines = (data.get("lines") or "").strip()
+    if not lines:
+        return jsonify({"error": "导入内容不能为空"}), 400
+    try:
+        result = import_mailbox_library_lines(lines)
+        return jsonify(result)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"导入邮箱库失败: {exc}"}), 500
+
+
+@app.route("/api/admin/mailboxes/<int:mailbox_id>/mails", methods=["GET"])
+def admin_mailbox_mails(mailbox_id):
+    guard = require_admin_api()
+    if guard:
+        return guard
+    try:
+        return jsonify(fetch_mailbox_library_emails(mailbox_id))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": f"获取邮箱邮件失败: {exc}"}), 500
+
+
+@app.route("/api/admin/mailboxes/<int:mailbox_id>", methods=["DELETE"])
+def admin_delete_mailbox(mailbox_id):
+    guard = require_admin_api()
+    if guard:
+        return guard
+    try:
+        deleted = delete_mailbox_library_item(mailbox_id)
+    except Exception as exc:
+        return jsonify({"error": f"删除邮箱失败: {exc}"}), 500
+    if not deleted:
+        return jsonify({"error": "未找到对应邮箱"}), 404
+    return jsonify({"deleted": True, "id": mailbox_id})
+
+
+@app.route("/api/admin/mailboxes/<int:mailbox_id>/add-to-stock", methods=["POST"])
+def admin_add_mailbox_to_stock(mailbox_id):
+    guard = require_admin_api()
+    if guard:
+        return guard
+    try:
+        result = add_mailbox_to_account_inventory(mailbox_id)
+        return jsonify(result)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": f"加入库存失败: {exc}"}), 500
 
 
 if __name__ == "__main__":

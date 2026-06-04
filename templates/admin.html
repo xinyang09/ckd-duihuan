@@ -287,6 +287,61 @@
       .table-action-btn + .table-action-btn {
         margin-left: 6px;
       }
+      .library-layout {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        gap: 14px;
+        min-height: calc(100vh - 340px);
+      }
+      .mailbox-list {
+        display: grid;
+        gap: 8px;
+      }
+      .mailbox-item {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        background: rgba(255,255,255,0.86);
+        cursor: pointer;
+      }
+      .mailbox-item.active {
+        border-color: #111111;
+        background: rgba(17,17,17,0.08);
+      }
+      .mailbox-title {
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .mailbox-meta {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .mail-preview-list {
+        display: grid;
+        gap: 10px;
+      }
+      .mail-preview-item {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        background: rgba(255,255,255,0.86);
+      }
+      .mail-preview-title {
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .mail-preview-meta {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .mail-preview-code {
+        margin-top: 8px;
+        font-size: 12px;
+        font-weight: 700;
+      }
       .state-pill {
         display: inline-flex;
         align-items: center;
@@ -365,6 +420,7 @@
             <div class="sidebar-title">左侧功能</div>
             <section class="tabs">
               <button class="tab-btn active" data-tab="mail" type="button">邮箱CDK</button>
+              <button class="tab-btn" data-tab="library" type="button">邮箱库</button>
               <button class="tab-btn" data-tab="sms" type="button">SMS CDK</button>
             </section>
           </aside>
@@ -401,6 +457,39 @@
                       </thead>
                       <tbody id="tableBody"></tbody>
                     </table>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section id="panel-library" class="tab-panel" hidden>
+              <div class="split">
+                <div class="view-card">
+                  <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:nowrap; white-space:nowrap; overflow:hidden;">
+                    <h2 style="margin:0;">邮箱库</h2>
+                    <button id="openMailboxImportBtn" class="action-btn compact-btn" type="button" style="width:auto;">导入邮箱库</button>
+                  </div>
+                  <div class="status" id="libraryStatus"></div>
+                  <div class="library-layout">
+                    <div class="subsection">
+                      <div class="subsection-title">邮箱列表</div>
+                      <div class="subsection-note" id="libraryCountMeta">当前共 0 个邮箱</div>
+                      <div class="table-scroll" style="max-height: calc(100vh - 430px);">
+                        <div id="mailboxList" class="mailbox-list"></div>
+                      </div>
+                    </div>
+                    <div class="subsection">
+                      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px;">
+                        <div class="subsection-title">邮件内容</div>
+                        <button type="button" class="table-action-btn" id="refreshMailboxBtn">获取邮件</button>
+                      </div>
+                      <div class="subsection-note" id="libraryMailMeta">请选择左侧邮箱</div>
+                      <div class="table-scroll" style="max-height: calc(100vh - 430px);">
+                        <div id="mailPreviewList" class="mail-preview-list">
+                          <div class="mail-preview-item">暂无内容</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -484,10 +573,23 @@
       </div>
     </div>
 
+    <div id="mailboxImportModal" class="modal" hidden>
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2>导入邮箱库</h2>
+          <button class="close-btn" type="button" data-close="mailboxImportModal">关闭</button>
+        </div>
+        <p>多行格式：每行一个邮箱，邮箱----邮箱密码/授权码----client_id----refresh_token</p>
+        <textarea id="mailboxLines" placeholder="请输入多行邮箱库内容"></textarea>
+        <button id="mailboxImportBtn">导入邮箱库</button>
+      </div>
+    </div>
+
     <script>
       const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
       const tabPanels = {
         mail: document.getElementById("panel-mail"),
+        library: document.getElementById("panel-library"),
         sms: document.getElementById("panel-sms"),
       };
 
@@ -515,8 +617,16 @@
       const smsStatusEl = document.getElementById("smsStatus");
       const smsStatsEl = document.getElementById("smsStats");
       const smsCdksEl = document.getElementById("smsCdks");
+      const libraryStatusEl = document.getElementById("libraryStatus");
+      const libraryCountMetaEl = document.getElementById("libraryCountMeta");
+      const libraryMailMetaEl = document.getElementById("libraryMailMeta");
+      const mailboxListEl = document.getElementById("mailboxList");
+      const mailPreviewListEl = document.getElementById("mailPreviewList");
+      const refreshMailboxBtn = document.getElementById("refreshMailboxBtn");
       const mailImportModal = document.getElementById("mailImportModal");
       const smsImportModal = document.getElementById("smsImportModal");
+      const mailboxImportModal = document.getElementById("mailboxImportModal");
+      let activeMailboxId = null;
 
       function openModal(modal) {
         modal.hidden = false;
@@ -528,6 +638,14 @@
 
       document.getElementById("openMailImportBtn").addEventListener("click", () => openModal(mailImportModal));
       document.getElementById("openSmsImportBtn").addEventListener("click", () => openModal(smsImportModal));
+      document.getElementById("openMailboxImportBtn").addEventListener("click", () => openModal(mailboxImportModal));
+      refreshMailboxBtn.addEventListener("click", () => {
+        if (!activeMailboxId) {
+          setLibraryStatus("请先选择左侧邮箱", true);
+          return;
+        }
+        loadMailboxMails(activeMailboxId);
+      });
 
       document.querySelectorAll("[data-close]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -544,6 +662,11 @@
       function setSmsStatus(message, isError = false) {
         smsStatusEl.textContent = message;
         smsStatusEl.style.color = isError ? "#b42318" : "#145b9f";
+      }
+
+      function setLibraryStatus(message, isError = false) {
+        libraryStatusEl.textContent = message;
+        libraryStatusEl.style.color = isError ? "#b42318" : "#145b9f";
       }
 
       function getSelectedAccountRows() {
@@ -814,6 +937,106 @@
         });
       }
 
+      function renderMailboxMails(items) {
+        if (!items || !items.length) {
+          mailPreviewListEl.innerHTML = '<div class="mail-preview-item">暂无邮件</div>';
+          return;
+        }
+        mailPreviewListEl.innerHTML = items.map((item, index) => `
+          <div class="mail-preview-item">
+            <div class="mail-preview-title">${index + 1}. [${item.mailbox || "INBOX"}] ${item.subject || "(No Subject)"}</div>
+            <div class="mail-preview-meta">From: ${item.from || "-"}</div>
+            <div class="mail-preview-meta">Date: ${formatDisplayTime(item.date)}</div>
+            <div class="mail-preview-code">验证码: ${item.code || "未识别到"}</div>
+          </div>
+        `).join("");
+      }
+
+      async function loadMailboxMails(mailboxId) {
+        activeMailboxId = mailboxId;
+        setLibraryStatus("正在获取邮件...");
+        try {
+          const data = await fetchJson(`/api/admin/mailboxes/${mailboxId}/mails`);
+          libraryMailMetaEl.textContent = `${data.mailbox?.email || "-"} 共 ${data.count || 0} 封邮件`;
+          renderMailboxMails(data.items || []);
+          setLibraryStatus("邮件加载完成");
+          mailboxListEl.querySelectorAll(".mailbox-item").forEach((el) => {
+            el.classList.toggle("active", String(el.dataset.id) === String(mailboxId));
+          });
+        } catch (error) {
+          setLibraryStatus(error.message, true);
+        }
+      }
+
+      async function loadMailboxLibrary() {
+        const data = await fetchJson("/api/admin/mailboxes");
+        const items = data.items || [];
+        libraryCountMetaEl.textContent = `当前共 ${items.length} 个邮箱`;
+        mailboxListEl.innerHTML = items.map((item) => `
+            <div class="mailbox-item ${String(item.id) === String(activeMailboxId) ? "active" : ""}" data-id="${item.id}">
+              <div class="mailbox-title">${item.email || "-"}</div>
+              <div class="mailbox-meta">导入时间 ${formatDisplayTime(item.created_at)}</div>
+              <div class="mailbox-meta">库存状态 ${item.stocked_cdk ? `已入库 · ${item.stocked_cdk}` : "未入库"}</div>
+              <div style="display:flex; gap:8px; margin-top:8px;">
+                <button type="button" class="table-action-btn open-mailbox-btn" data-id="${item.id}">查看邮件</button>
+                <button type="button" class="table-action-btn add-stock-btn" data-id="${item.id}" ${item.stocked_cdk ? "disabled" : ""}>${item.stocked_cdk ? "已入库" : "加入库存"}</button>
+                <button type="button" class="table-action-btn delete-mailbox-btn" data-id="${item.id}">删除</button>
+              </div>
+            </div>
+        `).join("");
+
+        mailboxListEl.querySelectorAll(".open-mailbox-btn").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            loadMailboxMails(button.dataset.id);
+          });
+        });
+
+        mailboxListEl.querySelectorAll(".delete-mailbox-btn").forEach((button) => {
+          button.addEventListener("click", async (event) => {
+            event.stopPropagation();
+            const mailboxId = button.dataset.id;
+            if (!window.confirm("确认删除这个邮箱吗？")) return;
+            try {
+              await fetchJson(`/api/admin/mailboxes/${mailboxId}`, { method: "DELETE" });
+              setLibraryStatus("邮箱已删除");
+              if (String(activeMailboxId) === String(mailboxId)) {
+                activeMailboxId = null;
+                libraryMailMetaEl.textContent = "请选择左侧邮箱";
+                mailPreviewListEl.innerHTML = '<div class="mail-preview-item">暂无内容</div>';
+              }
+              await loadMailboxLibrary();
+            } catch (error) {
+              setLibraryStatus(error.message, true);
+            }
+          });
+        });
+
+        mailboxListEl.querySelectorAll(".add-stock-btn").forEach((button) => {
+          button.addEventListener("click", async (event) => {
+            event.stopPropagation();
+            const mailboxId = button.dataset.id;
+            try {
+              const result = await fetchJson(`/api/admin/mailboxes/${mailboxId}/add-to-stock`, {
+                method: "POST",
+              });
+              if (result.status === "exists") {
+                setLibraryStatus(`该邮箱已在库存中，CDK: ${result.cdk}`);
+              } else {
+                setLibraryStatus(`已加入库存，CDK: ${result.cdk}`);
+              }
+              await loadAccounts();
+            } catch (error) {
+              setLibraryStatus(error.message, true);
+            }
+          });
+        });
+
+        mailboxListEl.querySelectorAll(".mailbox-item").forEach((itemEl) => {
+          itemEl.addEventListener("click", () => loadMailboxMails(itemEl.dataset.id));
+        });
+      }
+
       document.getElementById("importBtn").addEventListener("click", async () => {
         const lines = importLineEl.value.trim();
         if (!lines) {
@@ -863,7 +1086,31 @@
         }
       });
 
+      document.getElementById("mailboxImportBtn").addEventListener("click", async () => {
+        const lines = document.getElementById("mailboxLines").value.trim();
+        if (!lines) {
+          setLibraryStatus("请输入邮箱库导入内容", true);
+          return;
+        }
+        setLibraryStatus("正在导入邮箱库...");
+        try {
+          const data = await fetchJson("/api/admin/mailboxes/import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lines }),
+          });
+          setLibraryStatus(`导入完成，共 ${data.total || 0} 条，新增 ${data.inserted || 0} 条，更新 ${data.updated || 0} 条`);
+          document.getElementById("mailboxLines").value = "";
+          closeModal(mailboxImportModal);
+          await loadMailboxLibrary();
+          switchTab("library");
+        } catch (error) {
+          setLibraryStatus(error.message, true);
+        }
+      });
+
       loadAccounts().catch(err => setStatus(err.message, true));
+      loadMailboxLibrary().catch(err => setLibraryStatus(err.message, true));
       loadSmsDashboard().catch(err => setSmsStatus(err.message, true));
     </script>
   </body>
