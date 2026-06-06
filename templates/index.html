@@ -4,151 +4,233 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CDK 兑换中心</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
-        --bg: #f4f4f4;
-        --panel: rgba(255, 255, 255, 0.92);
-        --line: #d4d4d4;
-        --text: #111111;
-        --muted: #666666;
-        --accent: #111111;
-        --accent-2: #2f2f2f;
-        --accent-3: #4a4a4a;
+        --bg-deep: #06091a;
+        --bg: #0b0f23;
+        --panel: rgba(255, 255, 255, 0.04);
+        --panel-strong: rgba(255, 255, 255, 0.07);
+        --panel-hover: rgba(255, 255, 255, 0.10);
+        --line: rgba(255, 255, 255, 0.08);
+        --line-strong: rgba(255, 255, 255, 0.16);
+        --text: #f0f4ff;
+        --muted: #64748b;
+        --muted-2: #94a3b8;
+        --accent: #6366f1;
+        --accent-2: #8b5cf6;
+        --accent-glow: rgba(99, 102, 241, 0.28);
+        --cyan: #06b6d4;
+        --cyan-2: #0284c7;
+        --cyan-glow: rgba(6, 182, 212, 0.28);
+        --success: #10b981;
+        --error: #f87171;
+        --shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
       }
-      * { box-sizing: border-box; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
-        margin: 0;
-        font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
+        font-family: 'Inter', 'PingFang SC', 'Noto Sans SC', sans-serif;
         background:
-          radial-gradient(circle at top left, rgba(255,255,255,0.96) 0, transparent 30%),
-          linear-gradient(135deg, #fafafa, #f0f0f0 45%, #e7e7e7);
+          radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,102,241,0.14) 0, transparent 60%),
+          radial-gradient(ellipse 60% 50% at 80% 90%, rgba(139,92,246,0.10) 0, transparent 60%),
+          linear-gradient(160deg, #06091a 0%, #0b0f23 50%, #080c1e 100%);
         color: var(--text);
         min-height: 100vh;
-        padding: 16px;
+        padding: 28px 16px 48px;
       }
       .page {
-        width: min(500px, 100%);
+        width: min(520px, 100%);
         margin: 0 auto;
       }
+
+      /* ── Hero ── */
       .hero {
-        margin-bottom: 10px;
+        margin-bottom: 20px;
+        text-align: center;
       }
       .hero h1 {
-        margin: 0 0 8px;
-        font-size: 28px;
+        font-size: 38px;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        font-weight: 800;
+        background: linear-gradient(135deg, #f0f4ff 0%, #a5b4fc 60%, #8b5cf6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
       .hero p {
-        margin: 0;
-        color: var(--muted);
+        margin-top: 8px;
+        color: var(--muted-2);
+        font-size: 15px;
       }
+
+      /* ── Tabs ── */
       .tabs {
         display: flex;
         gap: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 20px;
         flex-wrap: wrap;
+        justify-content: center;
       }
       .tab-btn {
         border: 1px solid var(--line);
         border-radius: 999px;
-        padding: 9px 15px;
+        padding: 10px 22px;
         font-size: 14px;
+        font-weight: 600;
         cursor: pointer;
-        background: rgba(255,255,255,0.88);
+        background: var(--panel);
+        color: var(--muted-2);
+        font-family: inherit;
+        transition: all 0.2s ease;
+        backdrop-filter: blur(12px);
+      }
+      .tab-btn:hover {
+        border-color: var(--line-strong);
         color: var(--text);
+        background: var(--panel-strong);
       }
       .tab-btn.active {
-        background: var(--accent);
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
         color: white;
-        border-color: var(--accent);
+        border-color: transparent;
+        box-shadow: 0 8px 28px var(--accent-glow);
       }
       .tab-btn[data-tab="sms"].active {
-        background: var(--accent-3);
-        border-color: var(--accent-3);
+        background: linear-gradient(135deg, var(--cyan), var(--cyan-2));
+        box-shadow: 0 8px 28px var(--cyan-glow);
       }
+
+      /* ── Card ── */
       .card {
         background: var(--panel);
-        border: 1px solid rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--line);
         border-radius: 20px;
-        padding: 12px;
-        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.08);
-        backdrop-filter: blur(12px);
+        padding: 20px;
+        box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.06);
+        backdrop-filter: blur(24px);
         max-width: 100%;
       }
-      .tab-panel[hidden] {
-        display: none;
-      }
+      .tab-panel[hidden] { display: none; }
+
       h2 {
-        margin: 0 0 8px;
-        font-size: 21px;
+        font-size: 20px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        font-weight: 700;
+        margin-bottom: 4px;
       }
       .muted {
-        color: var(--muted);
+        color: var(--muted-2);
         font-size: 14px;
+        line-height: 1.65;
       }
+
+      /* ── Input row ── */
       .row {
         display: grid;
         grid-template-columns: 1fr auto auto;
-        gap: 6px;
-        margin: 10px 0 8px;
+        gap: 10px;
+        margin: 20px 0 14px;
       }
       input, textarea {
         width: 100%;
-        padding: 12px 14px;
-        border-radius: 12px;
+        padding: 14px 18px;
+        border-radius: 14px;
         border: 1px solid var(--line);
-        font-size: 16px;
-        background: #fffdf9;
+        font-size: 15px;
+        font-family: inherit;
+        background: rgba(255,255,255,0.05);
         color: var(--text);
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
       }
+      input::placeholder, textarea::placeholder {
+        color: var(--muted);
+      }
+      input:focus, textarea:focus {
+        border-color: var(--accent);
+        background: rgba(99,102,241,0.06);
+        box-shadow: 0 0 0 4px var(--accent-glow);
+      }
+
+      /* ── Buttons ── */
       button {
         border: 0;
-        border-radius: 12px;
-        padding: 0 14px;
-        font-size: 15px;
+        border-radius: 14px;
+        padding: 0 22px;
+        font-size: 14px;
+        font-weight: 600;
         cursor: pointer;
         color: white;
-        transition: transform .16s ease, opacity .16s ease;
+        font-family: inherit;
+        height: 50px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        white-space: nowrap;
       }
-      button:hover { transform: translateY(-1px); }
-      .primary { background: var(--accent); }
-      .secondary { background: var(--accent-2); }
-      .tertiary { background: var(--accent-3); }
+      button:hover { transform: translateY(-2px); }
+      button:active { transform: translateY(0); }
+      .primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        box-shadow: 0 8px 24px var(--accent-glow);
+      }
+      .primary:hover { box-shadow: 0 14px 36px var(--accent-glow); }
+      .secondary {
+        background: linear-gradient(135deg, #374151, #1f2937);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      }
+      .tertiary {
+        background: linear-gradient(135deg, var(--cyan), var(--cyan-2));
+        box-shadow: 0 8px 24px var(--cyan-glow);
+      }
+      .tertiary:hover { box-shadow: 0 14px 36px var(--cyan-glow); }
+
+      /* ── Status ── */
       .status {
-        min-height: 24px;
-        margin-bottom: 10px;
-        color: var(--accent);
-        font-size: 14px;
+        min-height: 22px;
+        margin-bottom: 12px;
+        font-size: 13px;
+        font-weight: 500;
+        border-radius: 8px;
+        padding: 0 2px;
       }
+
+      /* ── Info panels ── */
       .panel-grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 8px;
+        gap: 10px;
         margin-bottom: 10px;
       }
       .panel {
-        padding: 10px;
+        padding: 16px 18px;
         border: 1px solid var(--line);
-        border-radius: 14px;
-        background: rgba(255,255,255,0.58);
+        border-radius: 18px;
+        background: var(--panel-strong);
+        transition: all 0.2s ease;
       }
       .copy-panel {
         cursor: pointer;
-        transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease;
       }
       .copy-panel:hover {
+        border-color: var(--line-strong);
+        background: var(--panel-hover);
         transform: translateY(-1px);
-        border-color: #888888;
-        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.08);
-        background: rgba(255,255,255,0.96);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.3);
       }
       .copy-panel.copied {
-        border-color: #111111;
-        box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12);
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px var(--accent-glow);
       }
       .label {
-        font-size: 13px;
+        font-size: 11px;
+        font-weight: 600;
         color: var(--muted);
-        margin-bottom: 4px;
+        margin-bottom: 6px;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
       }
       .label-row {
         display: flex;
@@ -158,78 +240,178 @@
         margin-bottom: 6px;
       }
       .copy-tip {
-        font-size: 12px;
-        color: var(--accent-3);
+        font-size: 11px;
+        color: var(--accent);
+        opacity: 0.8;
+        font-weight: 500;
       }
       .value {
-        font-size: 16px;
+        font-size: 17px;
+        font-weight: 600;
         word-break: break-all;
+        color: var(--text);
       }
+
+      /* ── Mail section ── */
       .mail, .sms-box {
-        padding: 10px;
-        border-radius: 14px;
-        background: #fff;
+        padding: 18px;
+        border-radius: 18px;
+        background: var(--panel-strong);
         border: 1px solid var(--line);
       }
       .mail-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .mail-head-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .mail-status {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      #codeBtn {
+        height: 32px;
+        padding: 0 14px;
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 999px;
+        background: rgba(99,102,241,0.12);
+        border: 1px solid rgba(99,102,241,0.35);
+        color: #a5b4fc;
+        box-shadow: none;
+        transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      #codeBtn::before {
+        content: "↻";
+        font-size: 13px;
+        line-height: 1;
+      }
+      #codeBtn:hover {
+        background: rgba(99,102,241,0.22);
+        border-color: rgba(99,102,241,0.6);
+        color: #c7d2fe;
+        transform: translateY(-1px);
+      }
+      #codeBtn:active {
+        transform: translateY(0);
       }
       .mail-list {
         display: grid;
-        gap: 6px;
-        margin-top: 6px;
+        gap: 8px;
+        margin-top: 12px;
       }
-      .mail-status {
-        margin: 0;
-        font-size: 12px;
-        color: var(--accent);
-        background: rgba(17, 17, 17, 0.06);
-        border: 1px solid rgba(17, 17, 17, 0.08);
+      .mail-tip {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 10px 14px;
         border-radius: 10px;
-        padding: 6px 10px;
-        white-space: nowrap;
+        background: rgba(250,204,21,0.06);
+        border: 1px solid rgba(250,204,21,0.18);
+        font-size: 12px;
+        line-height: 1.6;
+        color: #fde68a;
+      }
+      .mail-tip-icon {
+        font-size: 14px;
+        flex-shrink: 0;
+        margin-top: 1px;
       }
       .mail-item {
         border: 1px solid var(--line);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.94);
-        padding: 8px 10px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.03);
+        padding: 14px 16px;
+        transition: border-color 0.2s ease, background 0.2s ease;
+      }
+      .mail-item:hover {
+        border-color: var(--line-strong);
+        background: rgba(255,255,255,0.06);
       }
       .mail-item-title {
-        font-size: 16px;
-        line-height: 1.35;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.4;
         margin-bottom: 4px;
+        color: var(--text);
       }
       .mail-item-meta {
-        font-size: 13px;
-        color: var(--muted);
-        line-height: 1.35;
+        font-size: 12px;
+        color: var(--muted-2);
+        line-height: 1.5;
       }
       .mail-item-code {
-        margin-top: 6px;
-        font-size: 18px;
-        font-weight: 700;
-        color: var(--accent);
+        margin-top: 10px;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
-      .mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      .code-copyable {
+        cursor: pointer;
+        position: relative;
+        transition: opacity 0.15s ease;
       }
-      .link {
-        color: var(--accent-3);
-        word-break: break-all;
+      .code-copyable:hover { opacity: 0.8; }
+      .code-copy-hint {
+        display: inline-block;
+        margin-left: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted-2);
+        background: none;
+        -webkit-text-fill-color: var(--muted-2);
+        letter-spacing: 0;
+        vertical-align: middle;
+        opacity: 0;
+        transition: opacity 0.2s ease;
       }
+      .code-copyable:hover .code-copy-hint { opacity: 1; }
+      .code-copy-hint.copied {
+        color: var(--success);
+        -webkit-text-fill-color: var(--success);
+        opacity: 1;
+      }
+
+      /* ── SMS ── */
       .sms-actions {
         display: grid;
         grid-template-columns: 1fr auto;
-        gap: 8px;
-        margin: 12px 0 10px;
+        gap: 10px;
+        margin: 16px 0 14px;
       }
-      @media (max-width: 720px) {
+      .mono {
+        font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+      }
+      .link {
+        color: var(--cyan);
+        word-break: break-all;
+        text-decoration: none;
+      }
+      .link:hover { text-decoration: underline; }
+
+      /* ── Responsive ── */
+      @media (max-width: 640px) {
         .row, .sms-actions, .panel-grid { grid-template-columns: 1fr; }
-        button { height: 42px; }
+        button { height: 46px; }
+        .hero h1 { font-size: 38px; }
+        body { padding: 32px 12px 48px; }
+        .card { padding: 20px; }
       }
     </style>
   </head>
@@ -251,7 +433,6 @@
         <div class="row">
           <input id="cdk" placeholder="请输入 GPT CDK" />
           <button class="primary" id="lookupBtn">兑换</button>
-          <button class="secondary" id="codeBtn">获取邮件</button>
         </div>
 
         <div class="status" id="status" hidden></div>
@@ -279,11 +460,18 @@
         <section class="mail" style="margin-top: 16px;">
           <div class="mail-head">
             <div class="label" style="margin-bottom: 0;">验证码邮件列表</div>
-            <div class="mail-status" id="mailStatus">自动刷新倒计时 15 秒</div>
+            <div class="mail-head-actions">
+              <div class="mail-status" id="mailStatus">自动刷新倒计时 15 秒</div>
+              <button id="codeBtn" type="button">获取邮件</button>
+            </div>
           </div>
           <div class="value" id="mailListMeta">-</div>
           <div id="mailList" class="mail-list">
             <div class="mail-item">暂无内容</div>
+          </div>
+          <div class="mail-tip">
+            <span class="mail-tip-icon">💡</span>
+            <span>收不到验证码邮件？可在 ChatGPT 登录页选择「以验证码登录」（Use verification code），输入邮箱地址，ChatGPT 会发验证码到该邮箱，稍等片刻再点「获取邮件」即可查看。</span>
           </div>
         </section>
       </section>
@@ -306,11 +494,6 @@
           </div>
         </section>
 
-        <section class="sms-box">
-          <div class="label">API 取件地址</div>
-          <div class="value"><a id="smsApiUrl" class="link mono" href="#" target="_blank">-</a></div>
-        </section>
-
         <section class="sms-box" style="margin-top: 16px;">
           <div class="label">网页取件地址</div>
           <div class="value"><a id="smsPickupUrl" class="link mono" href="#" target="_blank">-</a></div>
@@ -319,8 +502,10 @@
         <section class="sms-box" style="margin-top: 16px;">
           <div class="label">最近验证码</div>
           <div class="value mono" id="smsCode">-</div>
-          <div class="label" style="margin-top: 12px;">原始短信</div>
-          <div class="value mono" id="smsRaw" style="font-size: 14px; white-space: pre-wrap;">暂无内容</div>
+          <div id="smsRawWrap" hidden>
+            <div class="label" style="margin-top: 12px;">原始短信</div>
+            <div class="value mono" id="smsRaw" style="font-size: 14px; white-space: pre-wrap;"></div>
+          </div>
         </section>
       </section>
     </main>
@@ -331,6 +516,7 @@
         mail: document.getElementById("panel-mail"),
         sms: document.getElementById("panel-sms"),
       };
+      const ACTIVE_TAB_KEY = "cdk_duihuan_home_active_tab";
 
       function switchTab(tab) {
         tabButtons.forEach((button) => {
@@ -339,6 +525,7 @@
         Object.entries(tabPanels).forEach(([key, panel]) => {
           panel.hidden = key !== tab;
         });
+        localStorage.setItem(ACTIVE_TAB_KEY, tab);
       }
 
       tabButtons.forEach((button) => {
@@ -356,16 +543,15 @@
       const smsCdkInput = document.getElementById("smsCdk");
       const smsStatusEl = document.getElementById("smsStatus");
       const smsPhoneEl = document.getElementById("smsPhone");
-      const smsApiUrlEl = document.getElementById("smsApiUrl");
       const smsPickupUrlEl = document.getElementById("smsPickupUrl");
       const smsCodeEl = document.getElementById("smsCode");
+      const smsRawWrapEl = document.getElementById("smsRawWrap");
       const smsRawEl = document.getElementById("smsRaw");
       let mailPollingTimer = null;
       let mailCountdownTimer = null;
       let mailCountdown = 15;
       let smsPollingTimer = null;
       let smsToken = "";
-      const STORAGE_KEY = "cdk_duihuan_home_state_v1";
 
       function setStatus(message, isError = false) {
         if (!message) {
@@ -379,8 +565,15 @@
       }
 
       function setSmsStatus(message, isError = false) {
-        smsStatusEl.textContent = message;
+        smsStatusEl.textContent = isError ? message : "";
         smsStatusEl.style.color = isError ? "#b42318" : "#145b9f";
+      }
+
+      function updateSmsRaw(rawText) {
+        const value = (rawText || "").trim();
+        const shouldShow = value && value !== "没有获取到验证码";
+        smsRawWrapEl.hidden = !shouldShow;
+        smsRawEl.textContent = shouldShow ? value : "";
       }
 
       async function copyText(value) {
@@ -407,69 +600,29 @@
         }
       }
 
-      function savePageState() {
-        const activeTab = tabButtons.find((button) => button.classList.contains("active"))?.dataset.tab || "mail";
-        const state = {
-          activeTab,
-          cdk: cdkInput.value || "",
-          status: statusEl.textContent || "",
-          statusIsError: statusEl.style.color === "rgb(180, 35, 24)",
-          email: emailEl.textContent || "-",
-          gptPassword: passwordEl.textContent || "-",
-          mailStatus: mailStatusEl.textContent || "",
-          mailCountdown,
-          mailListMeta: mailListMetaEl.textContent || "-",
-          mailListHtml: mailListEl.innerHTML || "",
-          smsCdk: smsCdkInput.value || "",
-          smsStatus: smsStatusEl.textContent || "",
-          smsStatusIsError: smsStatusEl.style.color === "rgb(180, 35, 24)",
-          smsPhone: smsPhoneEl.textContent || "-",
-          smsApiUrl: smsApiUrlEl.textContent || "-",
-          smsApiHref: smsApiUrlEl.getAttribute("href") || "#",
-          smsPickupUrl: smsPickupUrlEl.textContent || "-",
-          smsPickupHref: smsPickupUrlEl.getAttribute("href") || "#",
-          smsCode: smsCodeEl.textContent || "-",
-          smsRaw: smsRawEl.textContent || "暂无内容",
-          smsToken,
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      }
+      function resetPageState() {
+        cdkInput.value = "";
+        setStatus("");
+        emailEl.textContent = "-";
+        passwordEl.textContent = "-";
+        mailStatusEl.textContent = "";
+        mailCountdown = 15;
+        mailListMetaEl.textContent = "-";
+        mailListEl.innerHTML = '<div class="mail-item">暂无内容</div>';
 
-      function restorePageState() {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-          return;
-        }
-        try {
-          const state = JSON.parse(raw);
-          cdkInput.value = state.cdk || "";
-          setStatus(state.status || "", !!state.statusIsError);
-          emailEl.textContent = state.email || "-";
-          passwordEl.textContent = state.gptPassword || "-";
-          mailStatusEl.textContent = state.mailStatus || "";
-          mailCountdown = Number.isFinite(state.mailCountdown) ? state.mailCountdown : 15;
-          mailListMetaEl.textContent = state.mailListMeta || "-";
-          mailListEl.innerHTML = state.mailListHtml || '<div class="mail-item">暂无内容</div>';
-
-          smsCdkInput.value = state.smsCdk || "";
-          setSmsStatus(state.smsStatus || "", !!state.smsStatusIsError);
-          smsPhoneEl.textContent = state.smsPhone || "-";
-          smsApiUrlEl.textContent = state.smsApiUrl || "-";
-          smsApiUrlEl.href = state.smsApiHref || "#";
-          smsPickupUrlEl.textContent = state.smsPickupUrl || "-";
-          smsPickupUrlEl.href = state.smsPickupHref || "#";
-          smsCodeEl.textContent = state.smsCode || "-";
-          smsRawEl.textContent = state.smsRaw || "暂无内容";
-          smsToken = state.smsToken || "";
-          switchTab(state.activeTab || "mail");
-          if (smsToken) {
-            if (smsPollingTimer) {
-              clearInterval(smsPollingTimer);
-            }
-            smsPollingTimer = setInterval(refreshSmsCode, 12000);
-          }
-        } catch (error) {
-          localStorage.removeItem(STORAGE_KEY);
+        smsCdkInput.value = "";
+        setSmsStatus("");
+        smsPhoneEl.textContent = "-";
+        smsPickupUrlEl.textContent = "-";
+        smsPickupUrlEl.href = "#";
+        smsCodeEl.textContent = "-";
+        updateSmsRaw("");
+        smsToken = "";
+        const activeTab = localStorage.getItem(ACTIVE_TAB_KEY);
+        switchTab(tabPanels[activeTab] ? activeTab : "mail");
+        if (smsPollingTimer) {
+          clearInterval(smsPollingTimer);
+          smsPollingTimer = null;
         }
       }
 
@@ -478,22 +631,28 @@
         const label = panel.dataset.copyLabel || "内容";
         const targetEl = document.getElementById(targetId);
         const value = (targetEl?.textContent || "").trim();
+        const tipEl = panel.querySelector(".copy-tip");
         if (!value || value === "-") {
-          setStatus(`${label}为空，无法复制`, true);
+          if (tipEl) { tipEl.textContent = "请先兑换"; tipEl.style.color = "var(--error)"; }
+          setTimeout(() => {
+            if (tipEl) { tipEl.textContent = "点击复制"; tipEl.style.color = ""; }
+          }, 1200);
           return;
         }
         try {
           const ok = await copyText(value);
-          if (!ok) {
-            throw new Error("copy failed");
-          }
+          if (!ok) throw new Error("copy failed");
           panel.classList.add("copied");
-          setStatus(`已复制${label}`);
-          savePageState();
-          window.setTimeout(() => panel.classList.remove("copied"), 1200);
+          if (tipEl) { tipEl.textContent = "✓ 已复制"; tipEl.style.color = "var(--success)"; }
+          setTimeout(() => {
+            panel.classList.remove("copied");
+            if (tipEl) { tipEl.textContent = "点击复制"; tipEl.style.color = ""; }
+          }, 1200);
         } catch (error) {
-          setStatus(`复制${label}失败`, true);
-          savePageState();
+          if (tipEl) { tipEl.textContent = "复制失败"; tipEl.style.color = "var(--error)"; }
+          setTimeout(() => {
+            if (tipEl) { tipEl.textContent = "点击复制"; tipEl.style.color = ""; }
+          }, 1200);
         }
       }
 
@@ -532,14 +691,39 @@
           return;
         }
 
-        mailListEl.innerHTML = items.map((item, index) => `
+        mailListEl.innerHTML = items.map((item, index) => {
+          const hasCode = item.code && item.code.trim();
+          const codeHtml = hasCode
+            ? `<span class="code-copyable" data-code="${escapeHtml(item.code)}">${
+                escapeHtml(item.code)
+              }<span class="code-copy-hint">点击复制</span></span>`
+            : `<span style="font-size:16px;font-weight:500;opacity:0.5">未识别到</span>`;
+          return `
           <article class="mail-item">
             <div class="mail-item-title">${index + 1}. [${escapeHtml(item.mailbox)}] ${escapeHtml(item.subject)}</div>
             <div class="mail-item-meta">From: ${escapeHtml(item.from)}</div>
             <div class="mail-item-meta">Date: ${escapeHtml(formatDisplayTime(item.date))}</div>
-            <div class="mail-item-code">验证码: ${escapeHtml(item.code || "未识别到")}</div>
-          </article>
-        `).join("");
+            <div class="mail-item-code">验证码: ${codeHtml}</div>
+          </article>`;
+        }).join("");
+
+        mailListEl.querySelectorAll(".code-copyable").forEach((el) => {
+          el.addEventListener("click", async () => {
+            const code = el.dataset.code || "";
+            if (!code) return;
+            const hint = el.querySelector(".code-copy-hint");
+            try {
+              await copyText(code);
+              setStatus(`已复制验证码：${code}`);
+              if (hint) { hint.textContent = "✓ 已复制"; hint.classList.add("copied"); }
+            } catch (e) {
+              setStatus("复制失败", true);
+            }
+            setTimeout(() => {
+              if (hint) { hint.textContent = "点击复制"; hint.classList.remove("copied"); }
+            }, 1500);
+          });
+        });
       }
 
       async function fetchJson(url, options = {}) {
@@ -566,6 +750,7 @@
 
         setStatus("正在兑换...");
         try {
+          // 第一步：纯 DB 查询，极快（<100ms），立即展示账号信息
           const data = await fetchJson("/api/account", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -575,10 +760,12 @@
           emailEl.textContent = data.email || "-";
           passwordEl.textContent = data.gpt_password || "-";
           setStatus(`兑换成功：${data.cdk}`);
-          savePageState();
+          // 第二步：邮件请求并行发出，不阻塞账号展示
+          mailListMetaEl.textContent = "正在获取邮件...";
+          startMailPolling();
+          loadAllCodes();
         } catch (error) {
           setStatus(error.message, true);
-          savePageState();
         }
       }
 
@@ -599,10 +786,8 @@
           renderMailList(data.items || []);
           mailCountdown = 15;
           mailStatusEl.textContent = `自动刷新倒计时 ${mailCountdown} 秒`;
-          savePageState();
         } catch (error) {
           mailStatusEl.textContent = error.message;
-          savePageState();
         }
       }
 
@@ -621,10 +806,8 @@
           renderMailList(data.items || []);
           mailCountdown = 15;
           mailStatusEl.textContent = `自动刷新倒计时 ${mailCountdown} 秒`;
-          savePageState();
         } catch (error) {
           mailStatusEl.textContent = error.message;
-          savePageState();
         }
       }
 
@@ -641,7 +824,6 @@
           }
           mailCountdown = mailCountdown <= 1 ? 15 : mailCountdown - 1;
           mailStatusEl.textContent = `自动刷新倒计时 ${mailCountdown} 秒`;
-          savePageState();
         }, 1000);
         mailPollingTimer = setInterval(() => {
           if (!document.hidden) {
@@ -657,11 +839,10 @@
         try {
           const data = await fetchJson(`/api/sms/code/${encodeURIComponent(smsToken)}`);
           smsCodeEl.textContent = data.code || "等待中";
-          smsRawEl.textContent = data.raw || "暂无内容";
-          savePageState();
+          updateSmsRaw(data.raw || "");
         } catch (error) {
           setSmsStatus(error.message, true);
-          savePageState();
+          updateSmsRaw("");
         }
       }
 
@@ -672,7 +853,7 @@
           return;
         }
 
-        setSmsStatus("正在兑换 SMS...");
+          setSmsStatus("");
         try {
           const data = await fetchJson("/api/sms/redeem", {
             method: "POST",
@@ -681,22 +862,18 @@
           });
 
           smsPhoneEl.textContent = data.phone || "-";
-          smsApiUrlEl.textContent = data.apiUrl || "-";
-          smsApiUrlEl.href = data.apiUrl || "#";
           smsPickupUrlEl.textContent = data.pickupUrl || "-";
           smsPickupUrlEl.href = data.pickupUrl || "#";
           smsToken = data.pickupToken || "";
-          setSmsStatus(data.mode === "existing" ? "这个接码兑换 CDK 已兑换过，已返回原手机号" : "接码兑换成功");
+          setSmsStatus("");
           await refreshSmsCode();
           if (smsPollingTimer) {
             clearInterval(smsPollingTimer);
           }
-          smsPollingTimer = setInterval(refreshSmsCode, 12000);
+          smsPollingTimer = setInterval(refreshSmsCode, 5000);
           switchTab("sms");
-          savePageState();
         } catch (error) {
           setSmsStatus(error.message, true);
-          savePageState();
         }
       }
 
@@ -706,17 +883,12 @@
       document.querySelectorAll(".copy-panel").forEach((panel) => {
         panel.addEventListener("click", () => copyPanelValue(panel));
       });
-      cdkInput.addEventListener("input", savePageState);
-      smsCdkInput.addEventListener("input", savePageState);
-      tabButtons.forEach((button) => {
-        button.addEventListener("click", savePageState);
-      });
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
           refreshMailListSilently();
         }
       });
-      restorePageState();
+      resetPageState();
       startMailPolling();
     </script>
   </body>

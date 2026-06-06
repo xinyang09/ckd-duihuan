@@ -4,67 +4,86 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>后台导入</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
-        --bg: #f2f2f2;
-        --panel: rgba(255, 255, 255, 0.9);
-        --panel-strong: rgba(255, 255, 255, 0.95);
-        --line: rgba(0, 0, 0, 0.1);
-        --text: #111111;
-        --muted: #666666;
-        --accent: #111111;
-        --accent-strong: #000000;
-        --accent-2: #2f2f2f;
-        --accent-2-strong: #1b1b1b;
-        --shadow: 0 24px 80px rgba(0, 0, 0, 0.08);
+        --bg: #06091a;
+        --panel: rgba(255, 255, 255, 0.04);
+        --panel-strong: rgba(255, 255, 255, 0.06);
+        --panel-hover: rgba(255, 255, 255, 0.09);
+        --line: rgba(255, 255, 255, 0.08);
+        --line-strong: rgba(255, 255, 255, 0.15);
+        --text: #f0f4ff;
+        --muted: #64748b;
+        --muted-2: #94a3b8;
+        --accent: #6366f1;
+        --accent-2: #8b5cf6;
+        --accent-glow: rgba(99, 102, 241, 0.28);
+        --accent-dark: rgba(99, 102, 241, 0.15);
+        --teal: #14b8a6;
+        --teal-2: #0d9488;
+        --teal-glow: rgba(20, 184, 166, 0.25);
+        --shadow: 0 40px 100px rgba(0, 0, 0, 0.65);
       }
-      * { box-sizing: border-box; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
-        margin: 0;
-        font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
+        font-family: 'Inter', 'PingFang SC', 'Noto Sans SC', sans-serif;
         background:
-          radial-gradient(circle at top left, rgba(255,255,255,0.96) 0, transparent 26%),
-          radial-gradient(circle at bottom right, rgba(214,214,214,0.36) 0, transparent 24%),
-          linear-gradient(135deg, #fafafa, #efefef 48%, #e4e4e4);
+          radial-gradient(ellipse 70% 50% at 15% 15%, rgba(99,102,241,0.12) 0, transparent 60%),
+          radial-gradient(ellipse 50% 40% at 85% 85%, rgba(139,92,246,0.08) 0, transparent 60%),
+          linear-gradient(160deg, #06091a 0%, #0b0f23 60%, #07091c 100%);
         color: var(--text);
         min-height: 100vh;
-        padding: 28px;
+        padding: 24px;
         overflow: hidden;
       }
       .page {
         width: min(1800px, 100%);
         margin: 0 auto;
-        height: calc(100vh - 56px);
+        height: calc(100vh - 48px);
       }
       .card {
-        background: var(--panel);
-        border: 1px solid rgba(0,0,0,0.06);
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--line);
         border-radius: 28px;
-        padding: 30px;
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(18px);
+        padding: 28px;
+        box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.06);
+        backdrop-filter: blur(24px);
         height: 100%;
         display: flex;
         flex-direction: column;
         overflow: hidden;
       }
+      .card > h1 {
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        background: linear-gradient(135deg, #f0f4ff 0%, #a5b4fc 70%, #8b5cf6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0;
+      }
       .hero-chip {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 8px 12px;
+        padding: 6px 12px;
         border-radius: 999px;
-        background: rgba(17, 17, 17, 0.06);
-        color: var(--accent-strong);
-        font-size: 13px;
+        background: var(--accent-dark);
+        border: 1px solid rgba(99,102,241,0.3);
+        color: #a5b4fc;
+        font-size: 12px;
         font-weight: 600;
         margin-bottom: 14px;
       }
       .admin-layout {
         display: grid;
-        grid-template-columns: 140px minmax(0, 1fr);
-        gap: 18px;
-        margin-top: 20px;
+        grid-template-columns: 148px minmax(0, 1fr);
+        gap: 16px;
+        margin-top: 18px;
         min-height: 0;
         flex: 1;
       }
@@ -72,52 +91,55 @@
         background: var(--panel-strong);
         border: 1px solid var(--line);
         border-radius: 22px;
-        padding: 14px;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+        padding: 14px 12px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
         height: 100%;
       }
       .sidebar-title {
-        margin: 0 0 14px;
-        font-size: 12px;
+        margin: 0 0 12px 4px;
+        font-size: 11px;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.09em;
         color: var(--muted);
+        font-weight: 600;
       }
       .tabs {
         display: grid;
-        gap: 10px;
+        gap: 6px;
       }
       .tab-btn {
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 12px 14px;
-        font-size: 14px;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        padding: 11px 14px;
+        font-size: 13px;
         font-weight: 600;
         cursor: pointer;
-        background: rgba(255,255,255,0.9);
-        color: var(--text);
+        background: transparent;
+        color: var(--muted-2);
         text-align: left;
-        transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+        font-family: inherit;
+        transition: all 0.18s ease;
       }
       .tab-btn:hover {
-        transform: translateY(-1px);
-        border-color: rgba(0, 0, 0, 0.18);
-        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+        background: var(--panel-hover);
+        color: var(--text);
+        border-color: var(--line);
       }
       .tab-btn.active {
-        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
         color: white;
         border-color: transparent;
-        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+        box-shadow: 0 8px 24px var(--accent-glow);
       }
       .tab-btn[data-tab="sms"].active {
-        background: linear-gradient(135deg, var(--accent-2), var(--accent-2-strong));
-        border-color: transparent;
-        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+        background: linear-gradient(135deg, var(--teal), var(--teal-2));
+        box-shadow: 0 8px 24px var(--teal-glow);
       }
-      .tab-panel[hidden] {
-        display: none;
+      .tab-btn[data-tab="library"].active {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        box-shadow: 0 8px 24px rgba(245,158,11,0.3);
       }
+      .tab-panel[hidden] { display: none; }
       .content {
         display: grid;
         gap: 16px;
@@ -129,22 +151,27 @@
         min-height: 0;
         height: 100%;
       }
-      h1 { margin: 0 0 8px; font-size: 36px; line-height: 1.04; }
-      h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.1; }
-      p { margin: 0 0 18px; color: var(--muted); line-height: 1.6; font-size: 14px; }
+      h1 { font-size: 32px; line-height: 1.05; }
+      h2 { font-size: 18px; line-height: 1.2; font-weight: 700; color: var(--text); }
+      p { color: var(--muted-2); line-height: 1.6; font-size: 13px; }
       textarea, input {
         width: 100%;
-        padding: 14px 16px;
-        border-radius: 16px;
+        padding: 12px 14px;
+        border-radius: 14px;
         border: 1px solid var(--line);
         font-size: 13px;
-        background: rgba(255,255,255,0.96);
+        font-family: inherit;
+        background: rgba(255,255,255,0.05);
         color: var(--text);
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
-      textarea {
-        min-height: 120px;
-        resize: vertical;
+      textarea::placeholder, input::placeholder { color: var(--muted); }
+      textarea:focus, input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-glow);
       }
+      textarea { min-height: 120px; resize: vertical; }
       .row {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -158,24 +185,54 @@
         background: var(--panel-strong);
         border: 1px solid var(--line);
         border-radius: 22px;
-        padding: 20px;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+        padding: 16px 18px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
       }
       .view-card table {
         margin-top: 12px;
       }
       .view-card {
         height: 100%;
-        overflow: auto;
-        min-height: calc(100vh - 320px);
+        overflow-y: auto;
+        overflow-x: visible;
+        min-height: calc(100vh - 180px);
+        max-height: calc(100vh - 180px);
         min-width: 0;
       }
       .table-scroll {
-        margin-top: 12px;
+        margin-top: 4px;
         max-height: calc(100vh - 430px);
-        overflow: auto;
-        border-radius: 18px;
+        overflow-x: auto;
+        overflow-y: auto;
+        border-radius: 16px;
         min-width: 0;
+        -webkit-overflow-scrolling: touch;
+      }
+      .account-table {
+        min-width: 1280px;
+        width: max-content;
+        table-layout: fixed;
+      }
+      #panel-mail .view-card {
+        overflow-x: hidden;
+        overflow-y: hidden;
+      }
+      #panel-mail .table-scroll {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: auto;
+        position: relative;
+        max-height: calc(100vh - 430px);
+        display: block;
+      }
+      #accountHeaderScroll {
+        overflow-x: hidden;
+      }
+      #accountBodyScroll {
+        overflow-x: auto;
+        overflow-y: auto;
+        height: calc(100vh - 430px);
+        min-height: 320px;
       }
       .section-stack {
         display: grid;
@@ -183,53 +240,62 @@
       }
       .subsection {
         border: 1px solid var(--line);
-        border-radius: 18px;
+        border-radius: 16px;
         padding: 14px;
-        background: rgba(255,255,255,0.84);
+        background: rgba(255,255,255,0.03);
       }
       .subsection-title {
-        margin: 0;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
-        color: var(--text);
+        color: var(--muted-2);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
       }
       .subsection-note {
-        margin: 6px 0 0;
+        margin: 5px 0 0;
         font-size: 12px;
         color: var(--muted);
       }
       button {
-        margin-top: 12px;
         border: 0;
-        border-radius: 16px;
+        border-radius: 14px;
         padding: 10px 16px;
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
         color: white;
-        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-        box-shadow: 0 14px 26px rgba(0, 0, 0, 0.14);
-        transition: transform .16s ease, box-shadow .16s ease;
+        font-family: inherit;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        box-shadow: 0 8px 20px var(--accent-glow);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        margin-top: 12px;
       }
       button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
+        box-shadow: 0 12px 28px var(--accent-glow);
+      }
+      button:active { transform: translateY(0); }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
       }
       .secondary {
-        background: linear-gradient(135deg, var(--accent-2), var(--accent-2-strong));
-        box-shadow: 0 14px 26px rgba(0, 0, 0, 0.14);
+        background: linear-gradient(135deg, var(--teal), var(--teal-2));
+        box-shadow: 0 8px 20px var(--teal-glow);
       }
+      .secondary:hover { box-shadow: 0 12px 28px var(--teal-glow); }
       .status {
         min-height: 24px;
-        margin: 14px 0;
-        color: var(--accent);
-        font-size: 13px;
+        margin: 4px 0;
+        font-size: 12px;
+        font-weight: 500;
       }
       table {
         width: 100%;
         border-collapse: collapse;
-        background: rgba(255,255,255,0.84);
-        border-radius: 18px;
+        background: transparent;
+        border-radius: 14px;
         overflow: hidden;
         table-layout: auto;
         min-width: max-content;
@@ -238,58 +304,122 @@
         text-align: left;
         padding: 10px 12px;
         border-bottom: 1px solid var(--line);
-        vertical-align: top;
+        vertical-align: middle;
         white-space: nowrap;
       }
       th {
         color: var(--muted);
         font-size: 10px;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        background: rgba(255,255,255,0.55);
+        font-weight: 700;
+        background: rgba(255,255,255,0.04);
+      }
+      .account-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: rgba(11,15,35,0.96);
+        box-shadow: 0 1px 0 var(--line);
+      }
+      .account-table {
+        border-collapse: separate;
+        border-spacing: 0;
       }
       td {
         font-size: 12px;
+        color: var(--muted-2);
+      }
+      tr:hover td {
+        background: rgba(255,255,255,0.03);
+        color: var(--text);
+      }
+      tr:last-child td {
+        border-bottom: none;
       }
       .mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
         white-space: nowrap;
+        color: #a5b4fc;
       }
-      .result-box {
-        margin-top: 12px;
-        min-height: 120px;
-      }
-      .action-list {
-        display: grid;
-        gap: 10px;
-      }
-      .action-btn {
-        width: 100%;
-        margin-top: 0;
-        text-align: left;
-      }
+      .action-list { display: grid; gap: 10px; }
+      .action-btn { width: 100%; margin-top: 0; text-align: left; }
       .compact-btn {
         padding: 8px 12px;
         font-size: 12px;
-        border-radius: 12px;
+        border-radius: 10px;
+        margin-top: 0;
       }
-      .action-cell {
-        white-space: nowrap;
-      }
+      .action-cell { white-space: nowrap; }
       .table-action-btn {
         margin-top: 0;
-        padding: 6px 10px;
+        padding: 5px 10px;
         font-size: 11px;
-        line-height: 1.1;
-        border-radius: 10px;
-        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+        line-height: 1.2;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(99,102,241,0.2);
       }
       .table-action-btn + .table-action-btn {
-        margin-left: 6px;
+        margin-left: 5px;
       }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 0;
+      }
+      .toolbar-left {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+        flex: 1;
+      }
+      .toolbar-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .toolbar-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .toolbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .toolbar-search {
+        width: 280px;
+        max-width: 100%;
+        margin-top: 0;
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 13px;
+      }
+      .pager {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        position: relative;
+        z-index: 4;
+        padding-bottom: 4px;
+        background: transparent;
+      }
+      .pager-meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .pager button { margin-top: 0; }
       .library-layout {
         display: grid;
-        grid-template-columns: 320px minmax(0, 1fr);
+        grid-template-columns: 300px minmax(0, 1fr);
         gap: 14px;
         min-height: calc(100vh - 340px);
       }
@@ -301,21 +431,39 @@
         border: 1px solid var(--line);
         border-radius: 14px;
         padding: 12px;
-        background: rgba(255,255,255,0.86);
+        background: rgba(255,255,255,0.03);
         cursor: pointer;
+        transition: all 0.18s ease;
+      }
+      .mailbox-item:hover {
+        background: var(--panel-hover);
+        border-color: var(--line-strong);
       }
       .mailbox-item.active {
-        border-color: #111111;
-        background: rgba(17,17,17,0.08);
+        border-color: var(--accent);
+        background: var(--accent-dark);
+        box-shadow: 0 0 0 3px var(--accent-glow);
       }
       .mailbox-title {
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 600;
+        color: var(--text);
       }
       .mailbox-meta {
         margin-top: 4px;
         font-size: 11px;
         color: var(--muted);
+      }
+      .stock-state {
+        font-weight: 700;
+        color: #34d399;
+      }
+      .add-stock-btn[disabled] {
+        background: linear-gradient(135deg, #059669, #047857);
+        color: #ffffff;
+        opacity: 1;
+        cursor: default;
+        box-shadow: 0 4px 14px rgba(5,150,105,0.3);
       }
       .mail-preview-list {
         display: grid;
@@ -324,23 +472,73 @@
       .mail-preview-item {
         border: 1px solid var(--line);
         border-radius: 14px;
-        padding: 12px;
-        background: rgba(255,255,255,0.86);
+        padding: 14px;
+        background: rgba(255,255,255,0.03);
+        transition: border-color 0.2s ease;
+      }
+      .mail-preview-item:hover {
+        border-color: var(--line-strong);
       }
       .mail-preview-title {
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 600;
         margin-bottom: 6px;
+        color: var(--text);
       }
       .mail-preview-meta {
         font-size: 11px;
-        color: var(--muted);
-        line-height: 1.5;
+        color: var(--muted-2);
+        line-height: 1.6;
       }
       .mail-preview-code {
         margin-top: 8px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
+        color: #a5b4fc;
+      }
+      .cdk-clickable {
+        cursor: pointer;
+        border-radius: 4px;
+        padding: 1px 4px;
+        margin: -1px -4px;
+        transition: background 0.15s ease, color 0.15s ease;
+        display: inline-block;
+      }
+      .cdk-clickable:hover {
+        background: rgba(165,180,252,0.15);
+        color: #c7d2fe;
+      }
+      .code-copyable {
+        cursor: pointer;
+        border-radius: 6px;
+        padding: 2px 6px;
+        transition: background 0.15s ease;
+        display: inline-block;
+      }
+      .code-copyable:hover {
+        background: rgba(165,180,252,0.15);
+      }
+      .code-copy-hint {
+        margin-left: 6px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .code-copyable:hover .code-copy-hint { opacity: 1; }
+      .code-copy-hint.copied {
+        color: #34d399;
+        opacity: 1;
+      }
+      .copyable-meta {
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.15s ease;
+      }
+      .copyable-meta:hover {
+        color: var(--text);
+        text-decoration: underline;
       }
       .state-pill {
         display: inline-flex;
@@ -354,52 +552,64 @@
         line-height: 1;
       }
       .state-on {
-        color: #0f5132;
-        background: rgba(25, 135, 84, 0.14);
+        color: #34d399;
+        background: rgba(52,211,153,0.12);
+        border: 1px solid rgba(52,211,153,0.2);
       }
       .state-off {
-        color: #6c757d;
-        background: rgba(108, 117, 125, 0.12);
+        color: var(--muted-2);
+        background: rgba(255,255,255,0.06);
+        border: 1px solid var(--line);
       }
-      .compact-btn + .compact-btn {
-        margin-left: 8px;
-      }
-      .modal[hidden] {
-        display: none;
-      }
+      .compact-btn + .compact-btn { margin-left: 8px; }
+      /* ── Modal ── */
+      .modal[hidden] { display: none; }
       .modal {
         position: fixed;
         inset: 0;
-        background: rgba(45, 36, 24, 0.42);
+        background: rgba(0, 0, 0, 0.72);
         display: grid;
         place-items: center;
         padding: 24px;
         z-index: 50;
+        backdrop-filter: blur(6px);
       }
       .modal-card {
-        width: min(720px, 100%);
-        background: rgba(255, 250, 242, 0.96);
-        border: 1px solid rgba(255,255,255,0.56);
+        width: min(680px, 100%);
+        background: rgba(11,15,35,0.98);
+        border: 1px solid var(--line-strong);
         border-radius: 24px;
-        padding: 22px;
-        box-shadow: 0 24px 80px rgba(77, 52, 21, 0.18);
-        backdrop-filter: blur(18px);
+        padding: 24px;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.07);
+        backdrop-filter: blur(24px);
       }
       .modal-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        margin-bottom: 14px;
+        margin-bottom: 16px;
       }
       .close-btn {
         margin-top: 0;
-        background: rgba(255,255,255,0.76);
-        color: var(--muted);
+        background: rgba(255,255,255,0.08);
+        color: var(--muted-2);
         border: 1px solid var(--line);
-        padding: 8px 12px;
+        padding: 8px 14px;
         box-shadow: none;
+        font-size: 12px;
       }
+      .close-btn:hover {
+        background: rgba(255,255,255,0.12);
+        color: var(--text);
+        box-shadow: none;
+        transform: none;
+      }
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
       @media (max-width: 720px) {
         .row { grid-template-columns: 1fr; }
         .split { grid-template-columns: 1fr; }
@@ -413,13 +623,13 @@
   <body>
     <main class="page">
       <div class="card">
-        <h1>后台导入</h1>
+        <h1>后台管理</h1>
 
         <div class="admin-layout">
           <aside class="sidebar">
             <div class="sidebar-title">左侧功能</div>
             <section class="tabs">
-              <button class="tab-btn active" data-tab="mail" type="button">邮箱CDK</button>
+              <button class="tab-btn active" data-tab="mail" type="button">ChatGPT成品</button>
               <button class="tab-btn" data-tab="library" type="button">邮箱库</button>
               <button class="tab-btn" data-tab="sms" type="button">SMS CDK</button>
             </section>
@@ -429,34 +639,66 @@
             <section id="panel-mail" class="tab-panel">
               <div class="split">
                 <div class="view-card">
-                  <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:nowrap; white-space:nowrap; overflow:hidden;">
-                    <h2 style="margin:0;">邮箱CDK查看</h2>
-                    <button id="openMailImportBtn" class="action-btn compact-btn" type="button" style="width:auto;">导入邮箱账号</button>
+                  <div class="toolbar">
+                    <div class="toolbar-left">
+                      <div class="toolbar-meta">
+                        <div class="subsection-note" id="mailCountMeta">当前共 0 条</div>
+                        <div class="subsection-note" id="mailSelectedMeta">已选中 0 条</div>
+                      </div>
+                      <div class="toolbar-actions">
+                        <input id="accountSearchInput" class="toolbar-search" type="text" placeholder="搜索邮箱或CDK" />
+                        <button type="button" class="secondary action-btn compact-btn" id="batchCopyBtn" style="width:auto;">批量复制</button>
+                        <button type="button" class="action-btn compact-btn" id="batchDeleteBtn" style="width:auto;">批量删除</button>
+                        <button id="openMailImportBtn" class="action-btn compact-btn" type="button" style="width:auto;">导入邮箱账号</button>
+                      </div>
+                    </div>
                   </div>
                   <div class="status" id="status"></div>
-                  <div class="subsection-note" id="mailCountMeta">当前共 0 条</div>
-                  <div class="subsection-note" id="mailSelectedMeta">已选中 0 条</div>
-                  <div style="display:flex; gap:10px; flex-wrap:nowrap; margin:10px 0 6px; overflow-x:auto;">
-                    <button type="button" class="secondary action-btn compact-btn" id="batchCopyBtn" style="width:auto;">批量复制</button>
-                    <button type="button" class="action-btn compact-btn" id="batchDeleteBtn" style="width:auto;">批量删除</button>
-                  </div>
-                  <div class="table-scroll">
-                    <table>
+                  <div class="table-scroll" id="accountHeaderScroll" style="overflow-y:hidden; max-height:none; margin-bottom:0; border-bottom-left-radius:0; border-bottom-right-radius:0;">
+                    <table class="account-table">
+                      <colgroup>
+                        <col style="width:44px;" />
+                        <col style="width:170px;" />
+                        <col style="width:92px;" />
+                        <col style="width:150px;" />
+                        <col style="width:240px;" />
+                        <col style="width:120px;" />
+                        <col style="width:150px;" />
+                        <col style="width:220px;" />
+                      </colgroup>
                       <thead>
                         <tr>
                           <th><input type="checkbox" id="selectAllAccounts" /></th>
                           <th>CDK</th>
                           <th>是否兑换</th>
                           <th>兑换时间</th>
-                          <th>是否出售</th>
                           <th>邮箱</th>
                           <th>GPT 密码</th>
                           <th>创建时间</th>
                           <th>操作</th>
                         </tr>
                       </thead>
+                    </table>
+                  </div>
+                  <div class="table-scroll" id="accountBodyScroll" style="margin-top:0; border-top-left-radius:0; border-top-right-radius:0;">
+                    <table class="account-table">
+                      <colgroup>
+                        <col style="width:44px;" />
+                        <col style="width:170px;" />
+                        <col style="width:92px;" />
+                        <col style="width:150px;" />
+                        <col style="width:240px;" />
+                        <col style="width:120px;" />
+                        <col style="width:150px;" />
+                        <col style="width:220px;" />
+                      </colgroup>
                       <tbody id="tableBody"></tbody>
                     </table>
+                  </div>
+                  <div class="pager">
+                    <div class="pager-meta" id="accountPagerMeta">第 1 / 1 页</div>
+                    <button type="button" class="compact-btn secondary" id="accountPrevBtn" style="width:auto;">上一页</button>
+                    <button type="button" class="compact-btn" id="accountNextBtn" style="width:auto;">下一页</button>
                   </div>
                 </div>
               </div>
@@ -473,6 +715,7 @@
                   <div class="library-layout">
                     <div class="subsection">
                       <div class="subsection-title">邮箱列表</div>
+                      <input id="mailboxSearchInput" type="text" placeholder="搜索邮箱" style="margin:10px 0;" />
                       <div class="subsection-note" id="libraryCountMeta">当前共 0 个邮箱</div>
                       <div class="table-scroll" style="max-height: calc(100vh - 430px);">
                         <div id="mailboxList" class="mailbox-list"></div>
@@ -483,7 +726,7 @@
                         <div class="subsection-title">邮件内容</div>
                         <button type="button" class="table-action-btn" id="refreshMailboxBtn">获取邮件</button>
                       </div>
-                      <div class="subsection-note" id="libraryMailMeta">请选择左侧邮箱</div>
+                      <div class="subsection-note copyable-meta" id="libraryMailMeta" title="点击复制邮箱">请选择左侧邮箱</div>
                       <div class="table-scroll" style="max-height: calc(100vh - 430px);">
                         <div id="mailPreviewList" class="mail-preview-list">
                           <div class="mail-preview-item">暂无内容</div>
@@ -567,8 +810,9 @@
           <h2>导入手机号</h2>
           <button class="close-btn" type="button" data-close="smsImportModal">关闭</button>
         </div>
-        <p>手机号格式：手机号----上游链接----备注（备注可选）</p>
-        <textarea id="smsLines" placeholder="17819294299----https://example.com/sms/1----OpenAI 专用"></textarea>
+        <p>格式支持：手机号|上游链接 或 手机号----上游链接----备注（备注可选）</p>
+        <textarea id="smsLines" placeholder="13675003949|http://fr88.site/api/msgForeign?code=58d8fe59fb2304eb
+17819294299----https://example.com/sms/1----OpenAI 专用"></textarea>
         <button class="secondary" id="smsImportBtn">导入手机号</button>
       </div>
     </div>
@@ -592,6 +836,7 @@
         library: document.getElementById("panel-library"),
         sms: document.getElementById("panel-sms"),
       };
+      const ACTIVE_TAB_KEY = "cdk_duihuan_admin_active_tab";
 
       function switchTab(tab) {
         tabButtons.forEach((button) => {
@@ -600,6 +845,7 @@
         Object.entries(tabPanels).forEach(([key, panel]) => {
           panel.hidden = key !== tab;
         });
+        localStorage.setItem(ACTIVE_TAB_KEY, tab);
       }
 
       tabButtons.forEach((button) => {
@@ -612,12 +858,19 @@
       const selectAllAccountsEl = document.getElementById("selectAllAccounts");
       const batchCopyBtn = document.getElementById("batchCopyBtn");
       const batchDeleteBtn = document.getElementById("batchDeleteBtn");
+      const accountSearchInput = document.getElementById("accountSearchInput");
+      const accountPagerMeta = document.getElementById("accountPagerMeta");
+      const accountPrevBtn = document.getElementById("accountPrevBtn");
+      const accountNextBtn = document.getElementById("accountNextBtn");
+      const accountHeaderScroll = document.getElementById("accountHeaderScroll");
+      const accountBodyScroll = document.getElementById("accountBodyScroll");
       const tableBody = document.getElementById("tableBody");
       const importLineEl = document.getElementById("importLine");
       const smsStatusEl = document.getElementById("smsStatus");
       const smsStatsEl = document.getElementById("smsStats");
       const smsCdksEl = document.getElementById("smsCdks");
       const libraryStatusEl = document.getElementById("libraryStatus");
+      const mailboxSearchInput = document.getElementById("mailboxSearchInput");
       const libraryCountMetaEl = document.getElementById("libraryCountMeta");
       const libraryMailMetaEl = document.getElementById("libraryMailMeta");
       const mailboxListEl = document.getElementById("mailboxList");
@@ -627,6 +880,11 @@
       const smsImportModal = document.getElementById("smsImportModal");
       const mailboxImportModal = document.getElementById("mailboxImportModal");
       let activeMailboxId = null;
+      let mailboxAbortController = null;
+      let accountItems = [];
+      let mailboxItems = [];
+      let accountPage = 1;
+      const accountPageSize = 15;
 
       function openModal(modal) {
         modal.hidden = false;
@@ -639,6 +897,15 @@
       document.getElementById("openMailImportBtn").addEventListener("click", () => openModal(mailImportModal));
       document.getElementById("openSmsImportBtn").addEventListener("click", () => openModal(smsImportModal));
       document.getElementById("openMailboxImportBtn").addEventListener("click", () => openModal(mailboxImportModal));
+      libraryMailMetaEl.addEventListener("click", async () => {
+        const raw = (libraryMailMetaEl.textContent || "").trim();
+        const email = raw.split(" 共 ")[0].trim();
+        if (!email || email === "请选择左侧邮箱" || !email.includes("@")) {
+          return;
+        }
+        const ok = await copyText(email);
+        setLibraryStatus(ok ? `已复制邮箱: ${email}` : "复制邮箱失败", !ok);
+      });
       refreshMailboxBtn.addEventListener("click", () => {
         if (!activeMailboxId) {
           setLibraryStatus("请先选择左侧邮箱", true);
@@ -653,6 +920,17 @@
           if (modal) closeModal(modal);
         });
       });
+
+      accountBodyScroll.addEventListener("scroll", () => {
+        accountHeaderScroll.scrollLeft = accountBodyScroll.scrollLeft;
+      });
+
+      function syncAccountTableWidth() {
+        const bodyTable = accountBodyScroll.querySelector("table");
+        const headerTable = accountHeaderScroll.querySelector("table");
+        if (!bodyTable || !headerTable) return;
+        headerTable.style.width = `${bodyTable.scrollWidth}px`;
+      }
 
       function setStatus(message, isError = false) {
         statusEl.textContent = message;
@@ -749,74 +1027,27 @@
         return data;
       }
 
-      async function loadAccounts() {
-        const data = await fetchJson("/api/admin/accounts");
-        mailCountMetaEl.textContent = `当前共 ${(data.items || []).length} 条`;
-        mailSelectedMetaEl.textContent = "已选中 0 条";
-        selectAllAccountsEl.checked = false;
-        tableBody.innerHTML = (data.items || []).map(item => `
-          <tr>
-            <td><input type="checkbox" class="account-checkbox" data-cdk="${item.cdk}" /></td>
-            <td class="mono">${item.cdk}</td>
-            <td><span class="state-pill ${item.redeemed ? "state-on" : "state-off"}">${item.redeemed ? "已兑换" : "未兑换"}</span></td>
-            <td>${formatDisplayTime(item.redeemed_at)}</td>
-            <td><span class="state-pill ${item.sold ? "state-on" : "state-off"}">${item.sold ? "已出售" : "未出售"}</span></td>
-            <td>${item.email}</td>
-            <td>${item.gpt_password}</td>
-            <td>${formatDisplayTime(item.created_at)}</td>
-            <td class="action-cell">
-              <button
-                type="button"
-                class="copy-cdk-btn table-action-btn"
-                data-cdk="${item.cdk || ""}"
-              >复制CDK</button>
-              <button
-                type="button"
-                class="copy-account-btn table-action-btn"
-                data-email="${item.email || ""}"
-                data-email-password="${item.email_password || ""}"
-                data-client-id="${item.client_id || ""}"
-                data-refresh-token="${item.refresh_token || ""}"
-                data-gpt-password="${item.gpt_password || ""}"
-              >复制CDK并出售</button>
-              <button type="button" class="delete-account-btn table-action-btn" data-cdk="${item.cdk}">删除</button>
-            </td>
-          </tr>
-        `).join("");
-
+      function bindAccountEvents() {
         tableBody.querySelectorAll(".copy-cdk-btn").forEach((button) => {
           button.addEventListener("click", async () => {
             const cdk = button.dataset.cdk || "";
             if (!cdk) return;
-            const ok = await copyText(cdk);
-            setStatus(ok ? "已复制CDK" : "复制失败", !ok);
+            const text = `CDK：${cdk}\n兑换地址：http://cdk.jijie.chat/`;
+            const ok = await copyText(text);
+            setStatus(ok ? "已复制CDK和兑换地址" : "复制失败", !ok);
           });
         });
 
-        tableBody.querySelectorAll(".copy-account-btn").forEach((button) => {
-          button.addEventListener("click", async () => {
-            const cdk = button.closest("tr")?.querySelector(".copy-cdk-btn")?.dataset.cdk || "";
+        tableBody.querySelectorAll(".cdk-clickable").forEach((span) => {
+          span.addEventListener("click", async () => {
+            const cdk = span.dataset.cdk || "";
+            if (!cdk) return;
             const text = `CDK：${cdk}\n兑换地址：http://cdk.jijie.chat/`;
             const ok = await copyText(text);
-            if (!ok) {
-              setStatus("复制失败", true);
-              return;
-            }
-            if (cdk) {
-              try {
-                await fetchJson(`/api/admin/accounts/${encodeURIComponent(cdk)}/sell`, {
-                  method: "POST",
-                });
-                setStatus("已复制CDK并标记为已出售");
-                await loadAccounts();
-              } catch (error) {
-                setStatus(error.message, true);
-              }
-            } else {
-              setStatus("已复制邮箱完整信息");
-            }
+            setStatus(ok ? `已复制：${cdk}` : "复制失败", !ok);
           });
         });
+
 
         const updateSelectedCount = () => {
           const checkboxes = Array.from(tableBody.querySelectorAll(".account-checkbox"));
@@ -836,6 +1067,88 @@
           });
           updateSelectedCount();
         };
+
+        tableBody.querySelectorAll(".delete-account-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const cdk = button.dataset.cdk;
+            if (!cdk) return;
+            const confirmed = window.confirm(`确认删除 ${cdk} 吗？`);
+            if (!confirmed) return;
+            setStatus(`正在删除 ${cdk}...`);
+            try {
+              await fetchJson(`/api/admin/accounts/${encodeURIComponent(cdk)}`, {
+                method: "DELETE",
+              });
+              setStatus(`已删除 ${cdk}`);
+              await loadAccounts();
+            } catch (error) {
+              setStatus(error.message, true);
+            }
+          });
+        });
+      }
+
+      function renderAccounts(items) {
+        const total = items.length;
+        const totalPages = Math.max(1, Math.ceil(total / accountPageSize));
+        if (accountPage > totalPages) {
+          accountPage = totalPages;
+        }
+        const start = (accountPage - 1) * accountPageSize;
+        const pageItems = items.slice(start, start + accountPageSize);
+
+        mailCountMetaEl.textContent = `当前共 ${total} 条`;
+        mailSelectedMetaEl.textContent = "已选中 0 条";
+        selectAllAccountsEl.checked = false;
+        accountPagerMeta.textContent = `第 ${accountPage} / ${totalPages} 页`;
+        accountPrevBtn.disabled = accountPage <= 1;
+        accountNextBtn.disabled = accountPage >= totalPages;
+        tableBody.innerHTML = (pageItems || []).map(item => `
+          <tr>
+            <td><input type="checkbox" class="account-checkbox" data-cdk="${item.cdk}" /></td>
+            <td class="mono"><span class="cdk-clickable" data-cdk="${item.cdk}">${item.cdk}</span></td>
+            <td><span class="state-pill ${item.redeemed ? "state-on" : "state-off"}">${item.redeemed ? "已兑换" : "未兑换"}</span></td>
+            <td>${formatDisplayTime(item.redeemed_at)}</td>
+            <td>${item.email}</td>
+            <td>${item.gpt_password}</td>
+            <td>${formatDisplayTime(item.created_at)}</td>
+            <td class="action-cell">
+              <button type="button" class="copy-cdk-btn table-action-btn" data-cdk="${item.cdk || ""}">复制CDK</button>
+              <button type="button" class="delete-account-btn table-action-btn" data-cdk="${item.cdk}">删除</button>
+            </td>
+          </tr>
+        `).join("");
+        bindAccountEvents();
+        syncAccountTableWidth();
+      }
+
+      function filterAccounts() {
+        const keyword = (accountSearchInput.value || "").trim().toLowerCase();
+        accountPage = 1;
+        if (!keyword) {
+          renderAccounts(accountItems);
+          return;
+        }
+        const filtered = accountItems.filter((item) => {
+          return String(item.email || "").toLowerCase().includes(keyword) || String(item.cdk || "").toLowerCase().includes(keyword);
+        });
+        renderAccounts(filtered);
+      }
+
+      function getFilteredAccounts() {
+        const keyword = (accountSearchInput.value || "").trim().toLowerCase();
+        if (!keyword) {
+          return accountItems;
+        }
+        return accountItems.filter((item) => {
+          return String(item.email || "").toLowerCase().includes(keyword) || String(item.cdk || "").toLowerCase().includes(keyword);
+        });
+      }
+
+      async function loadAccounts() {
+        const data = await fetchJson("/api/admin/accounts");
+        accountItems = data.items || [];
+        filterAccounts();
 
         batchCopyBtn.onclick = async () => {
           const rows = getSelectedAccountRows();
@@ -870,25 +1183,6 @@
           }
         };
 
-        tableBody.querySelectorAll(".delete-account-btn").forEach((button) => {
-          button.addEventListener("click", async () => {
-            const cdk = button.dataset.cdk;
-            if (!cdk) return;
-            const confirmed = window.confirm(`确认删除 ${cdk} 吗？`);
-            if (!confirmed) return;
-
-            setStatus(`正在删除 ${cdk}...`);
-            try {
-              await fetchJson(`/api/admin/accounts/${encodeURIComponent(cdk)}`, {
-                method: "DELETE",
-              });
-              setStatus(`已删除 ${cdk}`);
-              await loadAccounts();
-            } catch (error) {
-              setStatus(error.message, true);
-            }
-          });
-        });
       }
 
       async function loadSmsDashboard() {
@@ -942,41 +1236,103 @@
           mailPreviewListEl.innerHTML = '<div class="mail-preview-item">暂无邮件</div>';
           return;
         }
-        mailPreviewListEl.innerHTML = items.map((item, index) => `
+        mailPreviewListEl.innerHTML = items.map((item, index) => {
+          const hasCode = item.code && String(item.code).trim();
+          const codeVal = hasCode ? String(item.code).trim() : "";
+          const codeHtml = hasCode
+            ? `<span class="code-copyable" data-code="${codeVal}">${codeVal}<span class="code-copy-hint">点击复制</span></span>`
+            : `<span style="opacity:0.45">未识别到</span>`;
+          return `
           <div class="mail-preview-item">
             <div class="mail-preview-title">${index + 1}. [${item.mailbox || "INBOX"}] ${item.subject || "(No Subject)"}</div>
             <div class="mail-preview-meta">From: ${item.from || "-"}</div>
             <div class="mail-preview-meta">Date: ${formatDisplayTime(item.date)}</div>
-            <div class="mail-preview-code">验证码: ${item.code || "未识别到"}</div>
-          </div>
-        `).join("");
+            <div class="mail-preview-code">验证码: ${codeHtml}</div>
+          </div>`;
+        }).join("");
+
+        mailPreviewListEl.querySelectorAll(".code-copyable").forEach((el) => {
+          el.addEventListener("click", async () => {
+            const code = el.dataset.code || "";
+            if (!code) return;
+            const hint = el.querySelector(".code-copy-hint");
+            try {
+              await copyText(code);
+              setLibraryStatus(`已复制验证码：${code}`);
+              if (hint) { hint.textContent = "✓ 已复制"; hint.classList.add("copied"); }
+            } catch (e) {
+              setLibraryStatus("复制失败", true);
+            }
+            setTimeout(() => {
+              if (hint) { hint.textContent = "点击复制"; hint.classList.remove("copied"); }
+            }, 1500);
+          });
+        });
       }
 
       async function loadMailboxMails(mailboxId) {
+        // 取消上一个进行中的请求，立即响应新点击
+        if (mailboxAbortController) {
+          mailboxAbortController.abort();
+        }
+        const controller = new AbortController();
+        mailboxAbortController = controller;
+
         activeMailboxId = mailboxId;
-        setLibraryStatus("正在获取邮件...");
+
+        // 立即切换左侧选中高亮
+        mailboxListEl.querySelectorAll(".mailbox-item").forEach((el) => {
+          el.classList.toggle("active", String(el.dataset.id) === String(mailboxId));
+        });
+
+        // 立即清空右侧，显示骨架占位
+        libraryMailMetaEl.textContent = "正在拉取最新邮件...";
+        mailPreviewListEl.innerHTML = `
+          <div class="mail-preview-item" style="opacity:0.5;pointer-events:none;">
+            <div class="mail-preview-title" style="width:60%;height:13px;background:rgba(255,255,255,0.08);border-radius:4px;"></div>
+            <div class="mail-preview-meta" style="width:40%;height:11px;background:rgba(255,255,255,0.06);border-radius:4px;margin-top:8px;"></div>
+            <div class="mail-preview-meta" style="width:30%;height:11px;background:rgba(255,255,255,0.06);border-radius:4px;margin-top:4px;"></div>
+          </div>
+          <div class="mail-preview-item" style="opacity:0.3;pointer-events:none;">
+            <div class="mail-preview-title" style="width:50%;height:13px;background:rgba(255,255,255,0.08);border-radius:4px;"></div>
+            <div class="mail-preview-meta" style="width:35%;height:11px;background:rgba(255,255,255,0.06);border-radius:4px;margin-top:8px;"></div>
+          </div>`;
+
+        refreshMailboxBtn.disabled = true;
         try {
-          const data = await fetchJson(`/api/admin/mailboxes/${mailboxId}/mails`);
+          const response = await fetch(`/api/admin/mailboxes/${mailboxId}/mails`, {
+            signal: controller.signal,
+            cache: "no-store",
+          });
+          const text = await response.text();
+          // 请求被取消（切换到其他邮笱），静默忽略
+          if (controller.signal.aborted) return;
+          let data;
+          try { data = text ? JSON.parse(text) : {}; } catch { throw new Error("接口返回非 JSON"); }
+          if (!response.ok) throw new Error(data.error || "请求失败");
           libraryMailMetaEl.textContent = `${data.mailbox?.email || "-"} 共 ${data.count || 0} 封邮件`;
           renderMailboxMails(data.items || []);
-          setLibraryStatus("邮件加载完成");
-          mailboxListEl.querySelectorAll(".mailbox-item").forEach((el) => {
-            el.classList.toggle("active", String(el.dataset.id) === String(mailboxId));
-          });
+          setLibraryStatus("");
         } catch (error) {
+          if (error.name === "AbortError") return; // 正常取消，不报错
           setLibraryStatus(error.message, true);
+          mailPreviewListEl.innerHTML = '<div class="mail-preview-item">加载失败，请重试</div>';
+        } finally {
+          if (!controller.signal.aborted) {
+            refreshMailboxBtn.disabled = false;
+            mailboxAbortController = null;
+          }
         }
       }
 
-      async function loadMailboxLibrary() {
-        const data = await fetchJson("/api/admin/mailboxes");
-        const items = data.items || [];
+
+      function renderMailboxLibrary(items) {
         libraryCountMetaEl.textContent = `当前共 ${items.length} 个邮箱`;
         mailboxListEl.innerHTML = items.map((item) => `
             <div class="mailbox-item ${String(item.id) === String(activeMailboxId) ? "active" : ""}" data-id="${item.id}">
               <div class="mailbox-title">${item.email || "-"}</div>
               <div class="mailbox-meta">导入时间 ${formatDisplayTime(item.created_at)}</div>
-              <div class="mailbox-meta">库存状态 ${item.stocked_cdk ? `已入库 · ${item.stocked_cdk}` : "未入库"}</div>
+              <div class="mailbox-meta stock-meta">库存状态 <span class="stock-state">${item.stocked_cdk ? `已入库 · ${item.stocked_cdk}` : "未入库"}</span></div>
               <div style="display:flex; gap:8px; margin-top:8px;">
                 <button type="button" class="table-action-btn open-mailbox-btn" data-id="${item.id}">查看邮件</button>
                 <button type="button" class="table-action-btn add-stock-btn" data-id="${item.id}" ${item.stocked_cdk ? "disabled" : ""}>${item.stocked_cdk ? "已入库" : "加入库存"}</button>
@@ -1016,6 +1372,7 @@
           button.addEventListener("click", async (event) => {
             event.stopPropagation();
             const mailboxId = button.dataset.id;
+            const itemEl = button.closest(".mailbox-item");
             try {
               const result = await fetchJson(`/api/admin/mailboxes/${mailboxId}/add-to-stock`, {
                 method: "POST",
@@ -1025,6 +1382,15 @@
               } else {
                 setLibraryStatus(`已加入库存，CDK: ${result.cdk}`);
               }
+              if (itemEl) {
+                const stockStateEl = itemEl.querySelector(".stock-state");
+                if (stockStateEl) {
+                  stockStateEl.textContent = `已入库 · ${result.cdk}`;
+                }
+              }
+              button.textContent = "已入库";
+              button.disabled = true;
+              await loadMailboxLibrary();
               await loadAccounts();
             } catch (error) {
               setLibraryStatus(error.message, true);
@@ -1035,6 +1401,22 @@
         mailboxListEl.querySelectorAll(".mailbox-item").forEach((itemEl) => {
           itemEl.addEventListener("click", () => loadMailboxMails(itemEl.dataset.id));
         });
+      }
+
+      function filterMailboxLibrary() {
+        const keyword = (mailboxSearchInput.value || "").trim().toLowerCase();
+        if (!keyword) {
+          renderMailboxLibrary(mailboxItems);
+          return;
+        }
+        const filtered = mailboxItems.filter((item) => String(item.email || "").toLowerCase().includes(keyword));
+        renderMailboxLibrary(filtered);
+      }
+
+      async function loadMailboxLibrary() {
+        const data = await fetchJson("/api/admin/mailboxes");
+        mailboxItems = data.items || [];
+        filterMailboxLibrary();
       }
 
       document.getElementById("importBtn").addEventListener("click", async () => {
@@ -1108,6 +1490,24 @@
           setLibraryStatus(error.message, true);
         }
       });
+
+      accountSearchInput.addEventListener("input", filterAccounts);
+      mailboxSearchInput.addEventListener("input", filterMailboxLibrary);
+      accountPrevBtn.addEventListener("click", () => {
+        if (accountPage <= 1) return;
+        accountPage -= 1;
+        renderAccounts(getFilteredAccounts());
+      });
+      accountNextBtn.addEventListener("click", () => {
+        const filtered = getFilteredAccounts();
+        const totalPages = Math.max(1, Math.ceil(filtered.length / accountPageSize));
+        if (accountPage >= totalPages) return;
+        accountPage += 1;
+        renderAccounts(filtered);
+      });
+
+      const activeTab = localStorage.getItem(ACTIVE_TAB_KEY);
+      switchTab(tabPanels[activeTab] ? activeTab : "mail");
 
       loadAccounts().catch(err => setStatus(err.message, true));
       loadMailboxLibrary().catch(err => setLibraryStatus(err.message, true));

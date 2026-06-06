@@ -1,12 +1,21 @@
+import hashlib
 import os
 import random
 import re
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 
 import pymysql
+import pymysql.cursors
 import requests
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+
+try:
+    from dbutils.pooled_db import PooledDB as _PooledDB
+    _HAS_DBUTILS = True
+except ImportError:
+    _HAS_DBUTILS = False
 
 
 DEFAULT_CLIENT_ID = os.getenv("OUTLOOK_CLIENT_ID", "")
@@ -78,24 +87,69 @@ def load_env_file():
             os.environ.setdefault(key.strip(), value.strip())
 
 
+
+# ── MySQL 连接池（进程级单例，避免每次请求重新握手）──
+def _build_pool():
+    return _PooledDB(
+        creator=pymysql,
+        mincached=3,
+        maxcached=10,
+        maxconnections=20,
+        blocking=True,
+        ping=1,
+        host=os.getenv("MYSQL_HOST", "127.0.0.1"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        user=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        database=os.getenv("MYSQL_DATABASE", "cdk_mail"),
+        charset="utf8mb4",
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=False,
+        connect_timeout=10,
+        read_timeout=30,
+        write_timeout=30,
+    )
+
+_db_pool = None
+
+
+def get_db_pool():
+    global _db_pool
+    if _db_pool is None:
+        _db_pool = _build_pool()
+    return _db_pool
+
+
 def get_db_connection(database_required=True):
-    kwargs = {
-        "host": os.getenv("MYSQL_HOST", "127.0.0.1"),
-        "port": int(os.getenv("MYSQL_PORT", "3306")),
-        "user": os.getenv("MYSQL_USER", "root"),
-        "password": os.getenv("MYSQL_PASSWORD", ""),
-        "charset": "utf8mb4",
-        "cursorclass": pymysql.cursors.DictCursor,
-        "autocommit": False,
-        "connect_timeout": 10,
-        "read_timeout": 30,
-        "write_timeout": 30,
-    }
-    if database_required:
-        kwargs["database"] = os.getenv("MYSQL_DATABASE", "cdk_mail")
-    conn = pymysql.connect(**kwargs)
-    conn.ping(reconnect=True)
-    return conn
+    """从连接池取一条连接；database_required=False 时回退到直连（仅用于 init_db）。"""
+    if not database_required:
+        conn = pymysql.connect(
+            host=os.getenv("MYSQL_HOST", "127.0.0.1"),
+            port=int(os.getenv("MYSQL_PORT", "3306")),
+            user=os.getenv("MYSQL_USER", "root"),
+            password=os.getenv("MYSQL_PASSWORD", ""),
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=False,
+            connect_timeout=10,
+        )
+        return conn
+    if _HAS_DBUTILS:
+        return get_db_pool().connection()
+    # 备用：未安装 dbutils 时直连
+    return pymysql.connect(
+        host=os.getenv("MYSQL_HOST", "127.0.0.1"),
+        port=int(os.getenv("MYSQL_PORT", "3306")),
+        user=os.getenv("MYSQL_USER", "root"),
+        password=os.getenv("MYSQL_PASSWORD", ""),
+        database=os.getenv("MYSQL_DATABASE", "cdk_mail"),
+        charset="utf8mb4",
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=False,
+        connect_timeout=10,
+        read_timeout=30,
+        write_timeout=30,
+    )
 
 
 def init_db():
@@ -234,14 +288,22 @@ def generate_random_code(prefix="GPT", length=12):
     return f"{prefix}-{chunks[0]}-{chunks[1]}-{chunks[2]}"
 
 
-def generate_unique_cdk(prefix="GPT", length=12, table=TABLE_NAME, field="cdk"):
+def generate_unique_cdk(prefix="GPT", length=12, table=TABLE_NAME, field="cdk", cursor=None):
+    if cursor is not None:
+        for _ in range(50):
+            code = generate_random_code(prefix=prefix, length=length)
+            cursor.execute(f"SELECT 1 FROM `{table}` WHERE `{field}`=%s", (code,))
+            if not cursor.fetchone():
+                return code
+        raise RuntimeError("生成随机 CDK 失败，请重试")
+
     conn = get_db_connection()
     try:
-        with conn.cursor() as cursor:
+        with conn.cursor() as cursor_local:
             for _ in range(50):
                 code = generate_random_code(prefix=prefix, length=length)
-                cursor.execute(f"SELECT 1 FROM `{table}` WHERE `{field}`=%s", (code,))
-                if not cursor.fetchone():
+                cursor_local.execute(f"SELECT 1 FROM `{table}` WHERE `{field}`=%s", (code,))
+                if not cursor_local.fetchone():
                     return code
         raise RuntimeError("生成随机 CDK 失败，请重试")
     finally:
@@ -267,8 +329,28 @@ def fetch_access_token(refresh_token_val, client_id_val, scope=None):
     return token_data
 
 
+# 内存 token 缓存：避免每次请求都重新换取 access_token（有效期通常 3600s）
+_token_cache: dict = {}
+
+
+def _token_cache_key(refresh_token_val: str, client_id_val: str) -> str:
+    """对 refresh_token 做 sha256 摘要，避免把长 token 当 dict key。"""
+    raw = f"{client_id_val}:{refresh_token_val}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
 def fetch_graph_access_token(refresh_token_val, client_id_val):
-    return fetch_access_token(refresh_token_val, client_id_val, "https://graph.microsoft.com/.default")
+    """获取 Graph API access_token，优先使用内存缓存，过期前 60s 主动刷新。"""
+    cache_key = _token_cache_key(refresh_token_val, client_id_val)
+    cached = _token_cache.get(cache_key)
+    if cached and time.time() < cached["_expires_at"] - 60:
+        return cached
+    result = fetch_access_token(
+        refresh_token_val, client_id_val, "https://graph.microsoft.com/.default"
+    )
+    expires_in = int(result.get("expires_in") or 3600)
+    _token_cache[cache_key] = {**result, "_expires_at": time.time() + expires_in}
+    return _token_cache[cache_key]
 
 
 def graph_headers(access_token):
@@ -277,6 +359,8 @@ def graph_headers(access_token):
 
 def extract_verification_code(text):
     patterns = [
+        # Match 'verification code is: 324177' or similar
+        r"(?:verification code|security code|one-time code|one-time password|otp|验证码|校验码|安全代码)\s+(?:is|是)[:：\s-]*([A-Za-z0-9]{4,10})",
         r"(?:verification code|security code|one-time code|one-time password|otp|验证码|校验码|安全代码)[:：\s-]*([A-Za-z0-9]{4,10})",
         r"([A-Za-z0-9]{4,10})[:：\s-]*(?:is your verification code|is your security code|是你的验证码)",
         r"(?:code|验证码)[:：\s-]*([0-9]{4,10})",
@@ -351,7 +435,7 @@ def filter_recent_items(items, minutes=RECENT_MINUTES):
     return [item for item in items if item.get("date_obj") and item["date_obj"] >= cutoff]
 
 
-def fetch_all_emails(email_address, refresh_token, client_id, max_per_mailbox=100, apply_recent_limit=True):
+def fetch_all_emails(email_address, refresh_token, client_id, max_per_mailbox=30, apply_recent_limit=True):
     graph_result = fetch_graph_access_token(refresh_token, client_id or DEFAULT_CLIENT_ID)
     access_token = graph_result.get("access_token")
     scope = graph_result.get("scope", "")
@@ -417,7 +501,7 @@ def list_accounts():
         with conn.cursor() as cursor:
             cursor.execute(
                 f"""
-                SELECT cdk, email, email_password, client_id, gpt_password, refresh_token, redeemed, sold, redeemed_at, created_at
+                SELECT cdk, email, gpt_password, redeemed, sold, redeemed_at, created_at
                 FROM `{TABLE_NAME}`
                 ORDER BY id DESC
                 """
@@ -467,7 +551,7 @@ def import_account_lines(raw_lines):
                     results.append({"email": email, "status": "skipped", "cdk": existing["cdk"]})
                     continue
 
-                cdk = generate_unique_cdk(prefix="GPT", length=12, table=TABLE_NAME, field="cdk")
+                cdk = generate_unique_cdk(prefix="GPT", length=12, table=TABLE_NAME, field="cdk", cursor=cursor)
                 cursor.execute(
                     f"""
                     INSERT INTO `{TABLE_NAME}` (cdk, email, email_password, client_id, gpt_password, refresh_token)
@@ -508,7 +592,7 @@ def add_mailbox_to_account_inventory(mailbox_id):
             if existing:
                 return {"status": "exists", "cdk": existing["cdk"], "email": mailbox["email"]}
 
-            cdk = generate_unique_cdk(prefix="GPT", length=12, table=TABLE_NAME, field="cdk")
+            cdk = generate_unique_cdk(prefix="GPT", length=12, table=TABLE_NAME, field="cdk", cursor=cursor)
             cursor.execute(
                 f"""
                 INSERT INTO `{TABLE_NAME}` (cdk, email, email_password, client_id, gpt_password, refresh_token)
@@ -535,9 +619,15 @@ def import_sms_lines(raw_lines):
         line = line.strip()
         if not line:
             continue
-        parts = [part.strip() for part in line.split("----")]
+        if "----" in line:
+            parts = [part.strip() for part in line.split("----")]
+        elif "|" in line:
+            parts = [part.strip() for part in line.split("|", 2)]
+        else:
+            parts = [part.strip() for part in line.split("----")]
+        
         if len(parts) < 2:
-            raise ValueError("手机号导入格式错误，必须为 手机号----上游链接----备注（备注可选）")
+            raise ValueError("手机号导入格式错误，必须为 手机号----上游链接 或 手机号|上游链接")
         phone = parts[0]
         upstream_url = parts[1]
         remark = parts[2] if len(parts) > 2 else ""
@@ -572,7 +662,7 @@ def import_sms_lines(raw_lines):
                     inserted += 1
                     phone_id = cursor.lastrowid
 
-                code = generate_unique_cdk(prefix="SMS", length=10, table=SMS_CDK_TABLE, field="code")
+                code = generate_unique_cdk(prefix="SMS", length=10, table=SMS_CDK_TABLE, field="code", cursor=cursor)
                 cursor.execute(
                     f"""
                     INSERT INTO `{SMS_CDK_TABLE}` (code, phone, status, batch_name)
@@ -593,6 +683,9 @@ def import_sms_lines(raw_lines):
             "generated": len(generated_codes),
             "codes": generated_codes,
         }
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -660,7 +753,7 @@ def list_mailbox_library():
                     a.cdk AS stocked_cdk
                 FROM `{MAILBOX_LIBRARY_TABLE}` m
                 LEFT JOIN `{TABLE_NAME}` a ON lower(a.email) = lower(m.email)
-                ORDER BY m.id DESC
+                ORDER BY (a.cdk IS NOT NULL) ASC, m.id DESC
                 """
             )
             return cursor.fetchall()
@@ -706,7 +799,7 @@ def fetch_mailbox_library_emails(mailbox_id):
         mailbox["email"],
         mailbox["refresh_token"],
         mailbox.get("client_id") or DEFAULT_CLIENT_ID,
-        max_per_mailbox=100,
+        max_per_mailbox=20,
         apply_recent_limit=False,
     )
     return {
@@ -735,7 +828,7 @@ def generate_sms_cdks(count, batch_name, prefix, length):
 
             for row in phones:
                 phone = row["phone"]
-                code = generate_unique_cdk(prefix=prefix or "SMS", length=max(length, 8), table=SMS_CDK_TABLE, field="code")
+                code = generate_unique_cdk(prefix=prefix or "SMS", length=max(length, 8), table=SMS_CDK_TABLE, field="code", cursor=cursor)
                 cursor.execute(
                     f"""
                     INSERT INTO `{SMS_CDK_TABLE}` (code, phone, status, batch_name)
@@ -989,7 +1082,75 @@ def admin_login():
 
 @app.route("/sms-pickup")
 def sms_pickup():
-    return render_template("sms_pickup.html")
+    phone = request.args.get("phone", "").strip()
+    code = request.args.get("code", "").strip()
+    if not phone and not code:
+        return "参数错误：手机号或 CDK 不能为空", 400
+
+    return render_template("sms_pickup.html", phone=phone, code=code)
+
+
+@app.route("/sms-pickup/raw")
+def sms_pickup_raw():
+    phone = request.args.get("phone", "").strip()
+    code = request.args.get("code", "").strip()
+    if not phone and not code:
+        return "参数错误：手机号或 CDK 不能为空", 400
+
+    conn = get_db_connection()
+    row = None
+    try:
+        with conn.cursor() as cursor:
+            if code:
+                cursor.execute(
+                    f"""
+                    SELECT c.code, c.phone, c.status, c.redeemed_at, p.remark
+                    FROM `{SMS_CDK_TABLE}` c
+                    LEFT JOIN `{SMS_PHONE_TABLE}` p ON c.phone = p.phone
+                    WHERE c.code = %s
+                    """,
+                    (code,),
+                )
+                row = cursor.fetchone()
+            else:
+                cursor.execute(
+                    f"""
+                    SELECT c.code, c.phone, c.status, c.redeemed_at, p.remark
+                    FROM `{SMS_CDK_TABLE}` c
+                    LEFT JOIN `{SMS_PHONE_TABLE}` p ON c.phone = p.phone
+                    WHERE c.phone = %s
+                    ORDER BY c.id DESC LIMIT 1
+                    """,
+                    (phone,),
+                )
+                row = cursor.fetchone()
+                if not row:
+                    cursor.execute(
+                        f"SELECT phone, remark FROM `{SMS_PHONE_TABLE}` WHERE phone = %s",
+                        (phone,),
+                    )
+                    phone_row = cursor.fetchone()
+                    if phone_row:
+                        row = {
+                            "phone": phone_row["phone"],
+                            "code": "-",
+                            "status": "unused",
+                            "redeemed_at": None,
+                            "remark": phone_row["remark"],
+                        }
+    finally:
+        conn.close()
+
+    if not row:
+        return "未找到对应记录", 404
+
+    try:
+        sms_payload = fetch_sms_message(row["phone"])
+        raw_text = (sms_payload.get("raw") or "").strip()
+    except Exception:
+        raw_text = ""
+
+    return raw_text or "没有获取到验证码"
 
 
 @app.route("/api/sms/redeem", methods=["POST"])
@@ -1070,7 +1231,7 @@ def all_mails():
             account["email"],
             account["refresh_token"],
             account.get("client_id") or DEFAULT_CLIENT_ID,
-            max_per_mailbox=100,
+            max_per_mailbox=10,
         )
     except Exception as exc:
         return jsonify({"error": f"获取邮件失败: {exc}"}), 500
@@ -1089,6 +1250,49 @@ def all_mails():
     return jsonify({"items": slim_items, "count": len(slim_items)})
 
 
+@app.route("/api/account-with-mails", methods=["POST"])
+def account_with_mails():
+    """合并接口：一次请求完成 CDK 兑换 + 邮件获取，减少前端网络往返。"""
+    data = request.get_json(silent=True) or {}
+    cdk = (data.get("cdk") or "").strip()
+    if not cdk:
+        return jsonify({"error": "CDK 不能为空"}), 400
+
+    account = get_account_by_cdk(cdk)
+    if not account:
+        return jsonify({"error": "未找到对应 CDK"}), 404
+
+    mark_account_redeemed(cdk)
+
+    try:
+        mails = fetch_all_emails(
+            account["email"],
+            account["refresh_token"],
+            account.get("client_id") or DEFAULT_CLIENT_ID,
+            max_per_mailbox=10,
+        )
+    except Exception:
+        mails = []
+
+    verification_mails = [item for item in mails if is_verification_email(item)]
+    slim_items = [
+        {
+            "mailbox": item["mailbox"],
+            "subject": item["subject"],
+            "from": item["from"],
+            "date": item["date"],
+            "code": item["code"] or "",
+        }
+        for item in verification_mails
+    ]
+    return jsonify({
+        "cdk": account["cdk"],
+        "email": account["email"],
+        "gpt_password": account["gpt_password"],
+        "mails": {"items": slim_items, "count": len(slim_items)},
+    })
+
+
 @app.route("/api/latest-code", methods=["POST"])
 def latest_code():
     data = request.get_json(silent=True) or {}
@@ -1105,7 +1309,7 @@ def latest_code():
             account["email"],
             account["refresh_token"],
             account.get("client_id") or DEFAULT_CLIENT_ID,
-            max_per_mailbox=100,
+            max_per_mailbox=10,
         )
     except Exception as exc:
         return jsonify({"error": f"获取验证码失败: {exc}"}), 500

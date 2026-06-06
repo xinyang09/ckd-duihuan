@@ -4,112 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SMS 取件页</title>
-    <style>
-      :root {
-        --bg: #f6efe4;
-        --panel: rgba(255, 250, 242, 0.9);
-        --line: rgba(57, 31, 10, 0.12);
-        --ink: #21160f;
-        --muted: #6d5648;
-        --brand: #145b9f;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", sans-serif;
-        color: var(--ink);
-        background:
-          radial-gradient(circle at top left, #f1d0a8, transparent 28%),
-          linear-gradient(180deg, var(--bg) 0%, #fff 100%);
-      }
-      .page {
-        width: min(920px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 36px 0 48px;
-      }
-      .panel {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 28px;
-        box-shadow: 0 22px 70px rgba(22, 18, 13, 0.12);
-        padding: 24px;
-      }
-      .grid {
-        display: grid;
-        gap: 20px;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-      .code-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 88px;
-        width: 100%;
-        padding: 16px 24px;
-        border-radius: 22px;
-        background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,255,255,0.7));
-        border: 1px solid var(--line);
-        font-size: clamp(34px, 7vw, 64px);
-        font-weight: 800;
-        letter-spacing: 0.18em;
-      }
-      .mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        word-break: break-all;
-      }
-      .muted { color: var(--muted); }
-      pre {
-        white-space: pre-wrap;
-        word-break: break-word;
-      }
-      @media (max-width: 860px) {
-        .grid { grid-template-columns: 1fr; }
-      }
-    </style>
   </head>
   <body>
-    <main class="page">
-      <section class="grid">
-        <article class="panel">
-          <h1>SMS 取件页</h1>
-          <p class="muted">当前手机号和验证码会自动刷新。</p>
-          <div style="margin-top: 16px;">
-            <div class="muted">手机号</div>
-            <div class="mono" style="font-size: 30px; font-weight: 800;">{{ record.phone }}</div>
-          </div>
-          <div style="margin-top: 16px;">
-            <div class="muted">当前验证码</div>
-            <div class="code-box" id="code-value">{{ sms.code or "等待中" }}</div>
-          </div>
-          <div class="muted" style="margin-top: 16px;">CDK：<span class="mono">{{ record.code }}</span></div>
-          <div class="muted">兑换时间：{{ record.redeemed_at or "-" }}</div>
-          <div class="muted">备注：{{ record.note or "-" }}</div>
-        </article>
-        <article class="panel">
-          <h2>短信详情</h2>
-          <p class="muted">每 12 秒自动刷新一次。</p>
-          <button type="button" onclick="refreshCode()" style="border:0;border-radius:14px;padding:12px 18px;background:#145b9f;color:#fff;cursor:pointer;">立即刷新</button>
-          <div style="margin-top: 16px;">
-            <div class="muted">原始短信</div>
-            <pre id="raw-message" class="mono">{{ sms.raw or "暂无短信内容" }}</pre>
-          </div>
-        </article>
-      </section>
-    </main>
+    <pre id="sms-output"></pre>
     <script>
-      const endpoint = {{ ("/api/sms/code/" ~ token)|tojson }};
-      async function refreshCode() {
+      const endpoint = {{ ("/sms-pickup/raw?phone=" ~ phone if phone else "/sms-pickup/raw?code=" ~ code)|tojson }};
+
+      async function refreshSmsPickup() {
         try {
-          const response = await fetch(endpoint, { headers: { Accept: "application/json" } });
-          const payload = await response.json();
-          document.getElementById("code-value").textContent = payload.code || "等待中";
-          document.getElementById("raw-message").textContent = payload.raw || "暂无短信内容";
+          const response = await fetch(endpoint, { cache: "no-store" });
+          const text = await response.text();
+          document.getElementById("sms-output").textContent = text;
         } catch (error) {
-          document.getElementById("raw-message").textContent = `刷新失败: ${error.message}`;
+          document.getElementById("sms-output").textContent = "";
         }
       }
-      setInterval(refreshCode, 12000);
+
+      refreshSmsPickup();
+      setInterval(refreshSmsPickup, 5000);
     </script>
   </body>
   </html>
