@@ -1160,7 +1160,9 @@ def redeem_sms_cdk(code):
 
 
 def build_sms_links(phone):
-    base_url = os.getenv("SMS_PUBLIC_BASE_URL", f"http://127.0.0.1:{APP_PORT}")
+    base_url = os.getenv("SMS_PUBLIC_BASE_URL", "").strip()
+    if not base_url:
+        base_url = request.host_url.rstrip("/")
     safe_phone = phone or ""
     api_url = f"{base_url}/api/sms/code/{safe_phone}"
     pickup_url = f"{base_url}/sms-pickup?phone={safe_phone}"
