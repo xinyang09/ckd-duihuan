@@ -454,16 +454,15 @@
             <div class="label" style="margin-bottom: 0;">验证码邮件列表</div>
             <div class="mail-head-actions">
               <div class="mail-status" id="mailStatus">自动刷新倒计时 15 秒</div>
-              <button id="codeBtn" type="button">获取邮件</button>
+              <button id="codeBtn" type="button">立即获取</button>
             </div>
           </div>
-          <div class="value" id="mailListMeta">-</div>
           <div id="mailList" class="mail-list">
             <div class="mail-item">暂无内容</div>
           </div>
           <div class="mail-tip">
             <span class="mail-tip-icon">💡</span>
-            <span>收不到验证码邮件？可在 ChatGPT 登录页选择「以验证码登录」（Use verification code），输入邮箱地址，ChatGPT 会发验证码到该邮箱，稍等片刻再点「获取邮件」即可查看。</span>
+            <span>收不到验证码邮件？可在 ChatGPT 登录页选择「以验证码登录」（Use verification code），输入邮箱地址，ChatGPT 会发验证码到该邮箱，稍等片刻再点「立即获取」即可查看。</span>
           </div>
         </section>
       </section>
@@ -528,7 +527,6 @@
       const statusEl = document.getElementById("status");
       const emailEl = document.getElementById("email");
       const mailStatusEl = document.getElementById("mailStatus");
-      const mailListMetaEl = document.getElementById("mailListMeta");
       const mailListEl = document.getElementById("mailList");
 
       const smsCdkInput = document.getElementById("smsCdk");
@@ -597,7 +595,6 @@
         emailEl.textContent = "-";
         mailStatusEl.textContent = "";
         mailCountdown = 15;
-        mailListMetaEl.textContent = "-";
         mailListEl.innerHTML = '<div class="mail-item">暂无内容</div>';
 
         smsCdkInput.value = "";
@@ -750,7 +747,6 @@
           emailEl.textContent = data.email || "-";
           setStatus(`兑换成功：${data.cdk}`);
           // 第二步：邮件请求并行发出，不阻塞账号展示
-          mailListMetaEl.textContent = "正在获取邮件...";
           startMailPolling();
           loadAllCodes();
         } catch (error) {
@@ -771,7 +767,6 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ cdk }),
           });
-          mailListMetaEl.textContent = `共 ${data.count || 0} 封验证码邮件`;
           renderMailList(data.items || []);
           mailCountdown = 15;
           mailStatusEl.textContent = `自动刷新倒计时 ${mailCountdown} 秒`;
@@ -791,7 +786,6 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ cdk }),
           });
-          mailListMetaEl.textContent = `共 ${data.count || 0} 封验证码邮件`;
           renderMailList(data.items || []);
           mailCountdown = 15;
           mailStatusEl.textContent = `自动刷新倒计时 ${mailCountdown} 秒`;
