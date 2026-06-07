@@ -1210,7 +1210,6 @@ def account_lookup():
         {
             "cdk": account["cdk"],
             "email": account["email"],
-            "gpt_password": account["gpt_password"],
         }
     )
 
@@ -1236,7 +1235,7 @@ def all_mails():
     except Exception as exc:
         return jsonify({"error": f"获取邮件失败: {exc}"}), 500
 
-    verification_mails = [item for item in mails if is_verification_email(item)]
+    verification_mails = [item for item in mails if is_verification_email(item)][:1]
     slim_items = [
         {
             "mailbox": item["mailbox"],
