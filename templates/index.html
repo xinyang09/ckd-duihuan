@@ -114,6 +114,8 @@
         max-width: 100%;
       }
       .tab-panel[hidden] { display: none; }
+      #plusResultPanels[hidden],
+      #accountPhoneCard[hidden] { display: none !important; }
 
       h2 {
         font-size: 20px;
@@ -352,6 +354,12 @@
         color: var(--muted-2);
         line-height: 1.5;
       }
+      .mail-empty {
+        padding: 8px 2px 2px;
+        font-size: 14px;
+        color: var(--muted-2);
+        line-height: 1.5;
+      }
       .mail-item-code {
         margin-top: 10px;
         font-size: 28px;
@@ -420,12 +428,12 @@
   <body>
     <main class="page">
       <section class="hero">
-        <h1>Jie AI CDK兑换</h1>
+        <h1>CDK兑换</h1>
       </section>
 
       <section class="tabs">
-        <button class="tab-btn active" data-tab="mail" type="button">Plus兑换</button>
-        <button class="tab-btn" data-tab="sms" type="button">接码兑换</button>
+        <button class="tab-btn active" data-tab="mail" type="button">Plus成品号</button>
+        <button class="tab-btn" data-tab="sms" type="button">Codex接码</button>
       </section>
 
       <section id="panel-mail" class="tab-panel card">
@@ -439,30 +447,42 @@
 
         <div class="status" id="status" hidden></div>
 
-        <section class="panel-grid">
-          <div class="panel copy-panel" id="emailPanel" data-copy-target="email" data-copy-label="邮箱" title="点击复制邮箱">
+        <section class="panel-grid" id="plusResultPanels" style="margin-top: 16px;" hidden>
+          <div class="panel">
             <div class="label-row">
               <div class="label">邮箱</div>
               <div class="copy-tip">点击复制</div>
             </div>
-            <div class="value" id="email">-</div>
-          </div>
-        </section>
-
-        <section class="mail" style="margin-top: 16px;">
-          <div class="mail-head">
-            <div class="label" style="margin-bottom: 0;">验证码邮件列表</div>
-            <div class="mail-head-actions">
-              <div class="mail-status" id="mailStatus">自动刷新倒计时 15 秒</div>
-              <button id="codeBtn" type="button">立即获取</button>
+            <div class="value copy-panel" id="emailPanel" data-copy-target="email" data-copy-label="邮箱" title="点击复制邮箱">
+              <span id="email">-</span>
+            </div>
+            <div class="mail-head" style="margin-top: 18px;">
+              <div class="label" style="margin-bottom: 0;">邮箱验证码</div>
+              <div class="mail-head-actions">
+                <div class="mail-status" id="mailStatus">自动刷新倒计时 15 秒</div>
+                <button id="codeBtn" type="button">立即获取</button>
+              </div>
+            </div>
+            <div id="mailList" class="mail-list">
+              <div class="mail-empty">暂无验证码</div>
             </div>
           </div>
-          <div id="mailList" class="mail-list">
-            <div class="mail-item">暂无内容</div>
-          </div>
-          <div class="mail-tip">
-            <span class="mail-tip-icon">💡</span>
-            <span>收不到验证码邮件？可在 ChatGPT 登录页选择「以验证码登录」（Use verification code），输入邮箱地址，ChatGPT 会发验证码到该邮箱，稍等片刻再点「立即获取」即可查看。</span>
+
+          <div class="panel" id="accountPhoneCard" hidden>
+            <div class="label-row">
+              <div class="label">手机号</div>
+              <div class="copy-tip">点击复制</div>
+            </div>
+            <div class="value mono copy-panel" id="accountPhonePanel" data-copy-target="accountPhone" data-copy-label="手机号" title="点击复制手机号">
+              <span id="accountPhone">-</span>
+            </div>
+            <div class="label-row" style="margin-top: 18px;">
+              <div class="label">手机号验证码</div>
+              <div class="copy-tip">点击复制</div>
+            </div>
+            <div class="value mono copy-panel" id="accountPhoneCodePanel" data-copy-target="accountPhoneCode" data-copy-label="手机号验证码" title="点击复制手机号验证码">
+              <span id="accountPhoneCode">-</span>
+            </div>
           </div>
         </section>
       </section>
@@ -493,10 +513,6 @@
         <section class="sms-box" style="margin-top: 16px;">
           <div class="label">最近验证码</div>
           <div class="value mono" id="smsCode">-</div>
-          <div id="smsRawWrap" hidden>
-            <div class="label" style="margin-top: 12px;">原始短信</div>
-            <div class="value mono" id="smsRaw" style="font-size: 14px; white-space: pre-wrap;"></div>
-          </div>
         </section>
       </section>
     </main>
@@ -525,7 +541,11 @@
 
       const cdkInput = document.getElementById("cdk");
       const statusEl = document.getElementById("status");
+      const plusResultPanelsEl = document.getElementById("plusResultPanels");
+      const accountPhoneCardEl = document.getElementById("accountPhoneCard");
       const emailEl = document.getElementById("email");
+      const accountPhoneEl = document.getElementById("accountPhone");
+      const accountPhoneCodeEl = document.getElementById("accountPhoneCode");
       const mailStatusEl = document.getElementById("mailStatus");
       const mailListEl = document.getElementById("mailList");
 
@@ -534,8 +554,6 @@
       const smsPhoneEl = document.getElementById("smsPhone");
       const smsPickupUrlEl = document.getElementById("smsPickupUrl");
       const smsCodeEl = document.getElementById("smsCode");
-      const smsRawWrapEl = document.getElementById("smsRawWrap");
-      const smsRawEl = document.getElementById("smsRaw");
       let mailPollingTimer = null;
       let mailCountdownTimer = null;
       let mailCountdown = 15;
@@ -558,11 +576,12 @@
         smsStatusEl.style.color = isError ? "#b42318" : "#145b9f";
       }
 
-      function updateSmsRaw(rawText) {
-        const value = (rawText || "").trim();
-        const shouldShow = value && value !== "没有获取到验证码";
-        smsRawWrapEl.hidden = !shouldShow;
-        smsRawEl.textContent = shouldShow ? value : "";
+      function formatPhoneDisplay(value) {
+        const phone = String(value || "").trim();
+        if (!phone || phone === "-") {
+          return "-";
+        }
+        return phone.startsWith("+") ? phone : `+${phone}`;
       }
 
       async function copyText(value) {
@@ -592,10 +611,14 @@
       function resetPageState() {
         cdkInput.value = "";
         setStatus("");
+        plusResultPanelsEl.hidden = true;
+        accountPhoneCardEl.hidden = true;
         emailEl.textContent = "-";
+        accountPhoneEl.textContent = "-";
+        accountPhoneCodeEl.textContent = "-";
         mailStatusEl.textContent = "";
         mailCountdown = 15;
-        mailListEl.innerHTML = '<div class="mail-item">暂无内容</div>';
+        mailListEl.innerHTML = '<div class="mail-empty">暂无验证码</div>';
 
         smsCdkInput.value = "";
         setSmsStatus("");
@@ -603,7 +626,6 @@
         smsPickupUrlEl.textContent = "-";
         smsPickupUrlEl.href = "#";
         smsCodeEl.textContent = "-";
-        updateSmsRaw("");
         smsToken = "";
         const activeTab = localStorage.getItem(ACTIVE_TAB_KEY);
         switchTab(tabPanels[activeTab] ? activeTab : "mail");
@@ -674,11 +696,18 @@
 
       function renderMailList(items) {
         if (!items || items.length === 0) {
-          mailListEl.innerHTML = '<div class="mail-item">暂无匹配的验证码邮件</div>';
+          mailListEl.innerHTML = '<div class="mail-empty">暂无验证码</div>';
           return;
         }
 
-        mailListEl.innerHTML = items.map((item, index) => {
+        const firstItem = items[0] || {};
+        const hasCode = firstItem.code && firstItem.code.trim();
+        if (!hasCode) {
+          mailListEl.innerHTML = '<div class="mail-empty">暂无验证码</div>';
+          return;
+        }
+
+        mailListEl.innerHTML = items.slice(0, 1).map((item) => {
           const hasCode = item.code && item.code.trim();
           const codeHtml = hasCode
             ? `<span class="code-copyable" data-code="${escapeHtml(item.code)}">${
@@ -686,12 +715,7 @@
               }<span class="code-copy-hint">点击复制</span></span>`
             : `<span style="font-size:16px;font-weight:500;opacity:0.5">未识别到</span>`;
           return `
-          <article class="mail-item">
-            <div class="mail-item-title">${index + 1}. [${escapeHtml(item.mailbox)}] ${escapeHtml(item.subject)}</div>
-            <div class="mail-item-meta">From: ${escapeHtml(item.from)}</div>
-            <div class="mail-item-meta">Date: ${escapeHtml(formatDisplayTime(item.date))}</div>
-            <div class="mail-item-code">验证码: ${codeHtml}</div>
-          </article>`;
+          <div class="mail-item-code">验证码: ${codeHtml}</div>`;
         }).join("");
 
         mailListEl.querySelectorAll(".code-copyable").forEach((el) => {
@@ -744,7 +768,19 @@
             body: JSON.stringify({ cdk }),
           });
 
+          plusResultPanelsEl.hidden = false;
           emailEl.textContent = data.email || "-";
+          accountPhoneCardEl.hidden = !data.phone;
+          accountPhoneEl.textContent = formatPhoneDisplay(data.phone);
+          accountPhoneCodeEl.textContent = "暂无验证码";
+          if (data.phone) {
+            try {
+              const smsData = await fetchJson(`/api/sms/code/${encodeURIComponent(data.phone)}`);
+              accountPhoneCodeEl.textContent = smsData.code || "暂无验证码";
+            } catch (error) {
+              accountPhoneCodeEl.textContent = "暂无验证码";
+            }
+          }
           setStatus(`兑换成功：${data.cdk}`);
           // 第二步：邮件请求并行发出，不阻塞账号展示
           startMailPolling();
@@ -822,10 +858,8 @@
         try {
           const data = await fetchJson(`/api/sms/code/${encodeURIComponent(smsToken)}`);
           smsCodeEl.textContent = data.code || "等待中";
-          updateSmsRaw(data.raw || "");
         } catch (error) {
           setSmsStatus(error.message, true);
-          updateSmsRaw("");
         }
       }
 
@@ -844,7 +878,7 @@
             body: JSON.stringify({ cdk }),
           });
 
-          smsPhoneEl.textContent = data.phone || "-";
+          smsPhoneEl.textContent = formatPhoneDisplay(data.phone);
           smsPickupUrlEl.textContent = data.pickupUrl || "-";
           smsPickupUrlEl.href = data.pickupUrl || "#";
           smsToken = data.pickupToken || "";

@@ -174,6 +174,7 @@ def init_db():
                     id BIGINT PRIMARY KEY AUTO_INCREMENT,
                     cdk VARCHAR(64) NOT NULL UNIQUE,
                     email VARCHAR(255) NOT NULL,
+                    phone VARCHAR(32),
                     email_password TEXT,
                     client_id VARCHAR(255),
                     gpt_password VARCHAR(255) NOT NULL,
@@ -187,6 +188,8 @@ def init_db():
             )
             cursor.execute(f"SHOW COLUMNS FROM `{TABLE_NAME}`")
             account_columns = {row["Field"] for row in cursor.fetchall()}
+            if "phone" not in account_columns:
+                cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN phone VARCHAR(32)")
             if "email_password" not in account_columns:
                 cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN email_password TEXT")
             if "client_id" not in account_columns:
@@ -211,6 +214,8 @@ def init_db():
                     upstream_url TEXT,
                     remark VARCHAR(255),
                     assigned_tinyint TINYINT(1) DEFAULT 0,
+                    assigned_type VARCHAR(32),
+                    assigned_ref VARCHAR(64),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """
@@ -223,6 +228,8 @@ def init_db():
                     phone VARCHAR(32),
                     status VARCHAR(32) DEFAULT 'unused',
                     batch_name VARCHAR(128),
+                    latest_sms_code VARCHAR(64),
+                    latest_sms_fetched_at TIMESTAMP NULL DEFAULT NULL,
                     redeemed_at TIMESTAMP NULL DEFAULT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -248,6 +255,10 @@ def init_db():
                 cursor.execute(f"ALTER TABLE `{SMS_PHONE_TABLE}` ADD COLUMN remark VARCHAR(255)")
             if "assigned_tinyint" not in sms_phone_columns:
                 cursor.execute(f"ALTER TABLE `{SMS_PHONE_TABLE}` ADD COLUMN assigned_tinyint TINYINT(1) DEFAULT 0")
+            if "assigned_type" not in sms_phone_columns:
+                cursor.execute(f"ALTER TABLE `{SMS_PHONE_TABLE}` ADD COLUMN assigned_type VARCHAR(32)")
+            if "assigned_ref" not in sms_phone_columns:
+                cursor.execute(f"ALTER TABLE `{SMS_PHONE_TABLE}` ADD COLUMN assigned_ref VARCHAR(64)")
             if "created_at" not in sms_phone_columns:
                 cursor.execute(f"ALTER TABLE `{SMS_PHONE_TABLE}` ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
 
@@ -259,6 +270,10 @@ def init_db():
                 cursor.execute(f"ALTER TABLE `{SMS_CDK_TABLE}` ADD COLUMN status VARCHAR(32) DEFAULT 'unused'")
             if "batch_name" not in sms_cdk_columns:
                 cursor.execute(f"ALTER TABLE `{SMS_CDK_TABLE}` ADD COLUMN batch_name VARCHAR(128)")
+            if "latest_sms_code" not in sms_cdk_columns:
+                cursor.execute(f"ALTER TABLE `{SMS_CDK_TABLE}` ADD COLUMN latest_sms_code VARCHAR(64)")
+            if "latest_sms_fetched_at" not in sms_cdk_columns:
+                cursor.execute(f"ALTER TABLE `{SMS_CDK_TABLE}` ADD COLUMN latest_sms_fetched_at TIMESTAMP NULL DEFAULT NULL")
             if "redeemed_at" not in sms_cdk_columns:
                 cursor.execute(f"ALTER TABLE `{SMS_CDK_TABLE}` ADD COLUMN redeemed_at TIMESTAMP NULL DEFAULT NULL")
             if "created_at" not in sms_cdk_columns:
@@ -277,6 +292,36 @@ def init_db():
         conn.commit()
     finally:
         conn.close()
+
+
+def safe_schema_bootstrap():
+    try:
+        init_db()
+    except Exception as exc:
+        print(f"[startup] init_db failed: {exc}")
+
+    # Best-effort lightweight migrations against an existing DB connection.
+    try:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(f"SHOW COLUMNS FROM `{TABLE_NAME}`")
+                account_columns = {row["Field"] for row in cursor.fetchall()}
+                if "phone" not in account_columns:
+                    cursor.execute(f"ALTER TABLE `{TABLE_NAME}` ADD COLUMN phone VARCHAR(32)")
+
+                cursor.execute(f"SHOW COLUMNS FROM `{SMS_PHONE_TABLE}`")
+                sms_phone_columns = {row["Field"] for row in cursor.fetchall()}
+                if "assigned_type" not in sms_phone_columns:
+                    cursor.execute(f"ALTER TABLE `{SMS_PHONE_TABLE}` ADD COLUMN assigned_type VARCHAR(32)")
+                if "assigned_ref" not in sms_phone_columns:
+                    cursor.execute(f"ALTER TABLE `{SMS_PHONE_TABLE}` ADD COLUMN assigned_ref VARCHAR(64)")
+
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        print(f"[startup] safe_schema_bootstrap failed: {exc}")
 
 
 def generate_random_code(prefix="GPT", length=12):
@@ -458,7 +503,7 @@ def get_account_by_cdk(cdk):
         with conn.cursor() as cursor:
             cursor.execute(
                 f"""
-                SELECT cdk, email, email_password, client_id, gpt_password, refresh_token, redeemed
+                SELECT cdk, email, phone, email_password, client_id, gpt_password, refresh_token, redeemed
                 FROM `{TABLE_NAME}`
                 WHERE cdk = %s
                 """,
@@ -483,6 +528,27 @@ def mark_account_redeemed(cdk):
         conn.close()
 
 
+def mark_bound_phone_redeemed(phone):
+    if not phone:
+        return
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"""
+                UPDATE `{SMS_CDK_TABLE}`
+                SET status = 'redeemed', redeemed_at = NOW()
+                WHERE phone = %s
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (phone,),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def mark_account_sold(cdk):
     conn = get_db_connection()
     try:
@@ -501,7 +567,7 @@ def list_accounts():
         with conn.cursor() as cursor:
             cursor.execute(
                 f"""
-                SELECT cdk, email, gpt_password, redeemed, sold, redeemed_at, created_at
+                SELECT cdk, email, phone, gpt_password, redeemed, sold, redeemed_at, created_at
                 FROM `{TABLE_NAME}`
                 ORDER BY id DESC
                 """
@@ -519,6 +585,73 @@ def delete_account(cdk):
             deleted = cursor.rowcount
         conn.commit()
         return deleted
+    finally:
+        conn.close()
+
+
+def assign_phone_to_account(cdk):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT cdk, phone FROM `{TABLE_NAME}` WHERE cdk = %s", (cdk,))
+            account = cursor.fetchone()
+            if not account:
+                raise ValueError("未找到对应账号")
+            if account.get("phone"):
+                return {"cdk": cdk, "phone": account["phone"], "status": "existing"}
+
+            cursor.execute(
+                f"""
+                SELECT phone
+                FROM `{SMS_PHONE_TABLE}`
+                WHERE (assigned_type IS NULL OR assigned_type = '')
+                ORDER BY id ASC
+                LIMIT 1
+                """
+            )
+            phone_row = cursor.fetchone()
+            if not phone_row:
+                raise ValueError("没有可分配的手机号")
+
+            phone = phone_row["phone"]
+            cursor.execute(f"UPDATE `{TABLE_NAME}` SET phone = %s WHERE cdk = %s", (phone, cdk))
+            cursor.execute(
+                f"""
+                UPDATE `{SMS_PHONE_TABLE}`
+                SET assigned_tinyint = 1, assigned_type = 'account', assigned_ref = %s
+                WHERE phone = %s
+                """,
+                (cdk, phone),
+            )
+        conn.commit()
+        return {"cdk": cdk, "phone": phone, "status": "assigned"}
+    finally:
+        conn.close()
+
+
+def unbind_phone_from_account(cdk):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(f"SELECT phone FROM `{TABLE_NAME}` WHERE cdk = %s", (cdk,))
+            account = cursor.fetchone()
+            if not account:
+                raise ValueError("未找到对应账号")
+            phone = account.get("phone")
+            if not phone:
+                return {"cdk": cdk, "phone": "", "status": "empty"}
+
+            cursor.execute(f"UPDATE `{TABLE_NAME}` SET phone = NULL WHERE cdk = %s", (cdk,))
+            cursor.execute(
+                f"""
+                UPDATE `{SMS_PHONE_TABLE}`
+                SET assigned_tinyint = 0, assigned_type = NULL, assigned_ref = NULL
+                WHERE phone = %s AND assigned_type = 'account' AND assigned_ref = %s
+                """,
+                (phone, cdk),
+            )
+        conn.commit()
+        return {"cdk": cdk, "phone": phone, "status": "released"}
     finally:
         conn.close()
 
@@ -639,7 +772,6 @@ def import_sms_lines(raw_lines):
     conn = get_db_connection()
     inserted = 0
     updated = 0
-    generated_codes = []
     try:
         with conn.cursor() as cursor:
             for phone, upstream_url, remark in rows:
@@ -651,37 +783,19 @@ def import_sms_lines(raw_lines):
                         (upstream_url, remark, existing["id"]),
                     )
                     updated += 1
-                    if existing["assigned_tinyint"]:
-                        continue
-                    phone_id = existing["id"]
                 else:
                     cursor.execute(
                         f"INSERT INTO `{SMS_PHONE_TABLE}` (phone, upstream_url, remark) VALUES (%s, %s, %s)",
                         (phone, upstream_url, remark),
                     )
                     inserted += 1
-                    phone_id = cursor.lastrowid
-
-                code = generate_unique_cdk(prefix="SMS", length=10, table=SMS_CDK_TABLE, field="code", cursor=cursor)
-                cursor.execute(
-                    f"""
-                    INSERT INTO `{SMS_CDK_TABLE}` (code, phone, status, batch_name)
-                    VALUES (%s, %s, 'unused', %s)
-                    """,
-                    (code, phone, "auto-import"),
-                )
-                cursor.execute(
-                    f"UPDATE `{SMS_PHONE_TABLE}` SET assigned_tinyint = 1 WHERE id=%s",
-                    (phone_id,),
-                )
-                generated_codes.append(code)
         conn.commit()
         return {
             "total": len(rows),
             "inserted": inserted,
             "updated": updated,
-            "generated": len(generated_codes),
-            "codes": generated_codes,
+            "generated": 0,
+            "codes": [],
         }
     except Exception:
         conn.rollback()
@@ -819,7 +933,13 @@ def generate_sms_cdks(count, batch_name, prefix, length):
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                f"SELECT phone FROM `{SMS_PHONE_TABLE}` WHERE assigned_tinyint = 0 ORDER BY id ASC LIMIT %s",
+                f"""
+                SELECT phone
+                FROM `{SMS_PHONE_TABLE}`
+                WHERE (assigned_type IS NULL OR assigned_type = '')
+                ORDER BY id ASC
+                LIMIT %s
+                """,
                 (count,),
             )
             phones = cursor.fetchall()
@@ -837,8 +957,12 @@ def generate_sms_cdks(count, batch_name, prefix, length):
                     (code, phone, batch_name),
                 )
                 cursor.execute(
-                    f"UPDATE `{SMS_PHONE_TABLE}` SET assigned_tinyint = 1 WHERE phone=%s",
-                    (phone,),
+                    f"""
+                    UPDATE `{SMS_PHONE_TABLE}`
+                    SET assigned_tinyint = 1, assigned_type = 'sms_cdk', assigned_ref = %s
+                    WHERE phone=%s
+                    """,
+                    (code, phone),
                 )
                 generated.append(code)
         conn.commit()
@@ -851,9 +975,9 @@ def sms_dashboard():
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.execute(f"SELECT COUNT(*) AS count FROM `{SMS_PHONE_TABLE}` WHERE assigned_tinyint = 0")
+            cursor.execute(f"SELECT COUNT(*) AS count FROM `{SMS_PHONE_TABLE}` WHERE assigned_type IS NULL OR assigned_type = ''")
             available = cursor.fetchone()["count"]
-            cursor.execute(f"SELECT COUNT(*) AS count FROM `{SMS_PHONE_TABLE}` WHERE assigned_tinyint = 1")
+            cursor.execute(f"SELECT COUNT(*) AS count FROM `{SMS_PHONE_TABLE}` WHERE assigned_type IS NOT NULL AND assigned_type <> ''")
             assigned = cursor.fetchone()["count"]
             cursor.execute(f"SELECT COUNT(*) AS count FROM `{SMS_CDK_TABLE}` WHERE status = 'unused'")
             unused = cursor.fetchone()["count"]
@@ -861,7 +985,7 @@ def sms_dashboard():
             redeemed = cursor.fetchone()["count"]
             cursor.execute(
                 f"""
-                SELECT code, status, phone, redeemed_at
+                SELECT code, status, phone, latest_sms_code, latest_sms_fetched_at, redeemed_at
                 FROM `{SMS_CDK_TABLE}`
                 ORDER BY id DESC
                 LIMIT 20
@@ -899,12 +1023,51 @@ def delete_sms_cdk(code):
                 linked = cursor.fetchone()["count"]
                 if linked == 0:
                     cursor.execute(
-                        f"UPDATE `{SMS_PHONE_TABLE}` SET assigned_tinyint = 0 WHERE phone = %s",
+                        f"""
+                        UPDATE `{SMS_PHONE_TABLE}`
+                        SET assigned_tinyint = 0, assigned_type = NULL, assigned_ref = NULL
+                        WHERE phone = %s AND assigned_type = 'sms_cdk'
+                        """,
                         (phone,),
                     )
             deleted = cursor.rowcount
         conn.commit()
         return deleted
+    finally:
+        conn.close()
+
+
+def refresh_sms_cdk(code):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT id, phone, status, batch_name, latest_sms_code, latest_sms_fetched_at, redeemed_at
+                FROM `{SMS_CDK_TABLE}`
+                WHERE code = %s
+                """,
+                (code,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                raise ValueError("未找到对应 SMS CDK")
+
+            new_code = generate_unique_cdk(prefix="SMS", length=10, table=SMS_CDK_TABLE, field="code", cursor=cursor)
+            cursor.execute(
+                f"""
+                UPDATE `{SMS_CDK_TABLE}`
+                SET code = %s,
+                    status = 'unused',
+                    latest_sms_code = NULL,
+                    latest_sms_fetched_at = NULL,
+                    redeemed_at = NULL
+                WHERE id = %s
+                """,
+                (new_code, row["id"]),
+            )
+        conn.commit()
+        return {"old_code": code, "new_code": new_code}
     finally:
         conn.close()
 
@@ -915,7 +1078,7 @@ def list_sms_phones():
         with conn.cursor() as cursor:
             cursor.execute(
                 f"""
-                SELECT phone, upstream_url, remark, assigned_tinyint, created_at
+                SELECT phone, upstream_url, remark, assigned_tinyint, assigned_type, assigned_ref, created_at
                 FROM `{SMS_PHONE_TABLE}`
                 ORDER BY id DESC
                 LIMIT 50
@@ -1028,10 +1191,59 @@ def fetch_sms_message(phone):
     response = session.get(upstream_url, timeout=20)
     response.raise_for_status()
     raw_text = response.text.strip()
+    code = extract_verification_code(raw_text)
+
+    if code:
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    f"""
+                    UPDATE `{SMS_CDK_TABLE}`
+                    SET latest_sms_code = %s, latest_sms_fetched_at = NOW()
+                    WHERE phone = %s
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    (code, phone),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
     return {
-        "code": extract_verification_code(raw_text),
+        "code": code,
         "raw": raw_text,
         "source": upstream_url,
+    }
+
+
+def get_cached_sms_message(phone):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT latest_sms_code, latest_sms_fetched_at
+                FROM `{SMS_CDK_TABLE}`
+                WHERE phone = %s
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (phone,),
+            )
+            row = cursor.fetchone()
+    finally:
+        conn.close()
+
+    if not row or not row.get("latest_sms_code"):
+        return None
+
+    return {
+        "code": row["latest_sms_code"],
+        "raw": "",
+        "source": "cache",
+        "fetched_at": row.get("latest_sms_fetched_at"),
     }
 
 
@@ -1191,7 +1403,7 @@ def sms_code(phone):
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 404
     except Exception as exc:
-        return jsonify({"error": f"获取短信失败: {exc}"}), 500
+        return jsonify({"code": "", "raw": "", "source": "", "error": ""})
 
 
 @app.route("/api/account", methods=["POST"])
@@ -1206,10 +1418,16 @@ def account_lookup():
         return jsonify({"error": "未找到对应 CDK"}), 404
 
     mark_account_redeemed(cdk)
+    mark_bound_phone_redeemed(account.get("phone"))
+    pickup_url = ""
+    if account.get("phone"):
+        _, pickup_url = build_sms_links(account["phone"])
     return jsonify(
         {
             "cdk": account["cdk"],
             "email": account["email"],
+            "phone": account.get("phone") or "",
+            "pickupUrl": pickup_url,
         }
     )
 
@@ -1366,6 +1584,34 @@ def admin_sell_account(cdk):
     return jsonify({"sold": True, "cdk": cdk})
 
 
+@app.route("/api/admin/accounts/<cdk>/assign-phone", methods=["POST"])
+def admin_assign_account_phone(cdk):
+    guard = require_admin_api()
+    if guard:
+        return guard
+    try:
+        result = assign_phone_to_account(cdk)
+        return jsonify(result)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"分配手机号失败: {exc}"}), 500
+
+
+@app.route("/api/admin/accounts/<cdk>/unbind-phone", methods=["POST"])
+def admin_unbind_account_phone(cdk):
+    guard = require_admin_api()
+    if guard:
+        return guard
+    try:
+        result = unbind_phone_from_account(cdk)
+        return jsonify(result)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"解绑手机号失败: {exc}"}), 500
+
+
 @app.route("/api/admin/accounts/bulk-delete", methods=["POST"])
 def admin_bulk_delete_accounts():
     guard = require_admin_api()
@@ -1476,6 +1722,20 @@ def admin_delete_sms_cdk(code):
     return jsonify({"deleted": True, "code": code})
 
 
+@app.route("/api/admin/sms/cdks/<code>/refresh", methods=["POST"])
+def admin_refresh_sms_cdk(code):
+    guard = require_admin_api()
+    if guard:
+        return guard
+    try:
+        result = refresh_sms_cdk(code)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": f"刷新失败: {exc}"}), 500
+    return jsonify(result)
+
+
 @app.route("/api/admin/sms/phones", methods=["GET"])
 def admin_sms_phones():
     guard = require_admin_api()
@@ -1575,5 +1835,5 @@ def admin_add_mailbox_to_stock(mailbox_id):
 
 if __name__ == "__main__":
     load_env_file()
-    init_db()
+    safe_schema_bootstrap()
     app.run(host="0.0.0.0", port=APP_PORT, debug=True)

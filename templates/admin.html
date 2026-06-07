@@ -154,7 +154,7 @@
       h1 { font-size: 32px; line-height: 1.05; }
       h2 { font-size: 18px; line-height: 1.2; font-weight: 700; color: var(--text); }
       p { color: var(--muted-2); line-height: 1.6; font-size: 13px; }
-      textarea, input {
+      textarea, input, select {
         width: 100%;
         padding: 12px 14px;
         border-radius: 14px;
@@ -167,9 +167,34 @@
         transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
       textarea::placeholder, input::placeholder { color: var(--muted); }
-      textarea:focus, input:focus {
+      textarea:focus, input:focus, select:focus {
         border-color: var(--accent);
         box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+      select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        padding-right: 42px;
+        background-image:
+          linear-gradient(45deg, transparent 50%, #a5b4fc 50%),
+          linear-gradient(135deg, #a5b4fc 50%, transparent 50%),
+          linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+        background-position:
+          calc(100% - 18px) calc(50% - 3px),
+          calc(100% - 12px) calc(50% - 3px),
+          0 0;
+        background-size: 6px 6px, 6px 6px, 100% 100%;
+        background-repeat: no-repeat;
+        cursor: pointer;
+      }
+      select:hover {
+        border-color: var(--line-strong);
+        background-color: rgba(255,255,255,0.07);
+      }
+      select option {
+        background: #11162a;
+        color: var(--text);
       }
       textarea { min-height: 120px; resize: vertical; }
       .row {
@@ -255,6 +280,48 @@
         margin: 5px 0 0;
         font-size: 12px;
         color: var(--muted);
+      }
+      .stats-section {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .stat-card {
+        min-height: 120px;
+        padding: 16px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)),
+          rgba(255,255,255,0.03);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      }
+      .stat-card-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .stat-card-value {
+        font-size: 36px;
+        line-height: 1;
+        font-weight: 800;
+        color: var(--text);
+        letter-spacing: -0.04em;
+      }
+      .stat-card-note {
+        font-size: 12px;
+        color: var(--muted-2);
       }
       button {
         border: 0;
@@ -561,6 +628,19 @@
         background: rgba(255,255,255,0.06);
         border: 1px solid var(--line);
       }
+      #panel-sms-pool input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: #34d399;
+        position: relative;
+        z-index: 2;
+      }
+      #panel-sms-pool th:first-child,
+      #panel-sms-pool td:first-child {
+        width: 44px;
+        text-align: center;
+      }
       .compact-btn + .compact-btn { margin-left: 8px; }
       /* ── Modal ── */
       .modal[hidden] { display: none; }
@@ -614,6 +694,7 @@
         .row { grid-template-columns: 1fr; }
         .split { grid-template-columns: 1fr; }
         .admin-layout { grid-template-columns: 1fr; }
+        .stats-grid { grid-template-columns: 1fr 1fr; }
         body { overflow: auto; }
         .page { height: auto; }
         .card { height: auto; }
@@ -632,6 +713,7 @@
               <button class="tab-btn active" data-tab="mail" type="button">ChatGPT成品</button>
               <button class="tab-btn" data-tab="library" type="button">邮箱库</button>
               <button class="tab-btn" data-tab="sms" type="button">SMS CDK</button>
+              <button class="tab-btn" data-tab="sms-pool" type="button">手机号池</button>
             </section>
           </aside>
 
@@ -662,9 +744,10 @@
                         <col style="width:92px;" />
                         <col style="width:150px;" />
                         <col style="width:240px;" />
+                        <col style="width:160px;" />
                         <col style="width:120px;" />
                         <col style="width:150px;" />
-                        <col style="width:220px;" />
+                        <col style="width:280px;" />
                       </colgroup>
                       <thead>
                         <tr>
@@ -673,6 +756,7 @@
                           <th>是否兑换</th>
                           <th>兑换时间</th>
                           <th>邮箱</th>
+                          <th>手机号</th>
                           <th>GPT 密码</th>
                           <th>创建时间</th>
                           <th>操作</th>
@@ -688,9 +772,10 @@
                         <col style="width:92px;" />
                         <col style="width:150px;" />
                         <col style="width:240px;" />
+                        <col style="width:160px;" />
                         <col style="width:120px;" />
                         <col style="width:150px;" />
-                        <col style="width:220px;" />
+                        <col style="width:280px;" />
                       </colgroup>
                       <tbody id="tableBody"></tbody>
                     </table>
@@ -744,37 +829,50 @@
                   <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:nowrap; white-space:nowrap; overflow:hidden;">
                     <h2 style="margin:0;">SMS CDK查看</h2>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                      <button class="secondary action-btn compact-btn" id="openSmsImportBtn" type="button" style="width:auto;">导入手机号</button>
+                      <input id="smsGenerateCount" type="number" min="1" value="1" style="width:110px;" placeholder="生成数量" />
+                      <button class="secondary action-btn compact-btn" id="smsGenerateBtn" type="button" style="width:auto;">生成CDK</button>
                     </div>
                   </div>
                   <div class="status" id="smsStatus"></div>
                   <div class="section-stack">
-                    <section class="subsection">
-                      <h3 class="subsection-title">统计</h3>
-                      <div class="table-scroll" style="max-height: 220px;">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>统计</th>
-                              <th>数值</th>
-                            </tr>
-                          </thead>
-                          <tbody id="smsStats"></tbody>
-                        </table>
+                    <section class="subsection stats-section">
+                      <div class="stats-grid" id="smsStats">
+                        <article class="stat-card">
+                          <div class="stat-card-label">可分配号码</div>
+                          <div class="stat-card-value">0</div>
+                          <div class="stat-card-note">当前还能继续绑定生成 CDK 的号码</div>
+                        </article>
+                        <article class="stat-card">
+                          <div class="stat-card-label">已分配号码</div>
+                          <div class="stat-card-value">0</div>
+                          <div class="stat-card-note">已经和 SMS CDK 建立绑定关系</div>
+                        </article>
+                        <article class="stat-card">
+                          <div class="stat-card-label">未使用 SMS CDK</div>
+                          <div class="stat-card-value">0</div>
+                          <div class="stat-card-note">仍可售卖或继续使用的接码 CDK</div>
+                        </article>
+                        <article class="stat-card">
+                          <div class="stat-card-label">已兑换 SMS CDK</div>
+                          <div class="stat-card-value">0</div>
+                          <div class="stat-card-note">已经完成兑换领取的接码 CDK</div>
+                        </article>
                       </div>
                     </section>
 
                     <section class="subsection">
                       <h3 class="subsection-title">SMS 记录</h3>
                       <p class="subsection-note">按手机号展示已自动分配的 SMS CDK 和当前兑换状态。</p>
+                      <input id="smsSearchInput" type="text" placeholder="搜索手机号或 SMS CDK" style="margin:10px 0 12px;" />
                       <div class="table-scroll">
                         <table>
                           <thead>
                             <tr>
-                              <th>手机号</th>
                               <th>SMS CDK</th>
+                              <th>手机号</th>
                               <th>状态</th>
-                              <th>备注</th>
+                              <th>最近验证码</th>
+                              <th>获取时间</th>
                               <th>兑换时间</th>
                               <th>操作</th>
                             </tr>
@@ -784,6 +882,48 @@
                       </div>
                     </section>
                   </div>
+                </div>
+              </div>
+            </section>
+
+            <section id="panel-sms-pool" class="tab-panel" hidden>
+              <div class="split">
+                <div class="view-card">
+                  <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:nowrap; white-space:nowrap; overflow:hidden;">
+                    <h2 style="margin:0;">手机号池</h2>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                      <button class="action-btn compact-btn" id="smsPoolBatchDeleteBtn" type="button" style="width:auto;">批量删除</button>
+                      <button class="secondary action-btn compact-btn" id="openSmsImportBtnPool" type="button" style="width:auto;">导入手机号</button>
+                    </div>
+                  </div>
+                  <div class="status" id="smsPoolStatus"></div>
+                  <section class="subsection">
+                    <h3 class="subsection-title">手机号池列表</h3>
+                    <p class="subsection-note">生成指定数量 CDK 时，会从这里按顺序取未分配号码并绑定到 SMS CDK。</p>
+                    <input id="smsPoolSearchInput" type="text" placeholder="搜索手机号或 SMS CDK" style="margin:10px 0 12px;" />
+                    <div style="display:flex; justify-content:flex-end; margin:10px 0 12px;">
+                      <select id="smsPoolFilter" style="width:160px;">
+                        <option value="unassigned" selected>只看未分配</option>
+                        <option value="assigned">只看已分配</option>
+                        <option value="all">查看全部</option>
+                      </select>
+                    </div>
+                    <div class="table-scroll">
+                        <table>
+                          <thead>
+                          <tr>
+                            <th><input type="checkbox" id="selectAllSmsPool" /></th>
+                            <th>手机号</th>
+                            <th>对应 SMS CDK</th>
+                            <th>占用来源</th>
+                            <th>原始取件地址</th>
+                            <th>分配状态</th>
+                          </tr>
+                        </thead>
+                        <tbody id="smsPhonePool"></tbody>
+                      </table>
+                    </div>
+                  </section>
                 </div>
               </div>
             </section>
@@ -835,6 +975,7 @@
         mail: document.getElementById("panel-mail"),
         library: document.getElementById("panel-library"),
         sms: document.getElementById("panel-sms"),
+        "sms-pool": document.getElementById("panel-sms-pool"),
       };
       const ACTIVE_TAB_KEY = "cdk_duihuan_admin_active_tab";
 
@@ -867,7 +1008,14 @@
       const tableBody = document.getElementById("tableBody");
       const importLineEl = document.getElementById("importLine");
       const smsStatusEl = document.getElementById("smsStatus");
+      const smsPoolStatusEl = document.getElementById("smsPoolStatus");
       const smsStatsEl = document.getElementById("smsStats");
+      const smsSearchInput = document.getElementById("smsSearchInput");
+      const smsPoolSearchInput = document.getElementById("smsPoolSearchInput");
+      const smsPoolFilterEl = document.getElementById("smsPoolFilter");
+      const smsPhonePoolEl = document.getElementById("smsPhonePool");
+      const selectAllSmsPoolEl = document.getElementById("selectAllSmsPool");
+      const smsPoolBatchDeleteBtn = document.getElementById("smsPoolBatchDeleteBtn");
       const smsCdksEl = document.getElementById("smsCdks");
       const libraryStatusEl = document.getElementById("libraryStatus");
       const mailboxSearchInput = document.getElementById("mailboxSearchInput");
@@ -895,7 +1043,7 @@
       }
 
       document.getElementById("openMailImportBtn").addEventListener("click", () => openModal(mailImportModal));
-      document.getElementById("openSmsImportBtn").addEventListener("click", () => openModal(smsImportModal));
+      document.getElementById("openSmsImportBtnPool").addEventListener("click", () => openModal(smsImportModal));
       document.getElementById("openMailboxImportBtn").addEventListener("click", () => openModal(mailboxImportModal));
       libraryMailMetaEl.addEventListener("click", async () => {
         const raw = (libraryMailMetaEl.textContent || "").trim();
@@ -940,11 +1088,74 @@
       function setSmsStatus(message, isError = false) {
         smsStatusEl.textContent = message;
         smsStatusEl.style.color = isError ? "#b42318" : "#145b9f";
+        if (smsPoolStatusEl) {
+          smsPoolStatusEl.textContent = message;
+          smsPoolStatusEl.style.color = isError ? "#b42318" : "#145b9f";
+        }
       }
 
       function setLibraryStatus(message, isError = false) {
         libraryStatusEl.textContent = message;
         libraryStatusEl.style.color = isError ? "#b42318" : "#145b9f";
+      }
+
+      function formatSmsStatus(value) {
+        if (value === "unused") return "未使用";
+        if (value === "redeemed") return "已兑换";
+        return value || "-";
+      }
+
+      function smsStatusClass(value) {
+        if (value === "unused") return "state-on";
+        if (value === "redeemed") return "state-on";
+        return "state-off";
+      }
+
+      function formatPhoneAssigned(value) {
+        return value ? "已分配" : "未分配";
+      }
+
+      function formatPhoneDisplay(value) {
+        const phone = String(value || "").trim();
+        if (!phone || phone === "-") {
+          return "-";
+        }
+        return phone.startsWith("+") ? phone : `+${phone}`;
+      }
+
+      function formatPhoneAssignedSource(type, ref) {
+        if (type === "sms_cdk") return `SMS CDK${ref ? ` · ${ref}` : ""}`;
+        if (type === "account") return `成品号${ref ? ` · ${ref}` : ""}`;
+        return "-";
+      }
+
+      function filterSmsPoolItems(items) {
+        const mode = smsPoolFilterEl?.value || "unassigned";
+        const keyword = (smsPoolSearchInput?.value || "").trim().toLowerCase();
+        return items.filter((item) => {
+          if (mode === "assigned" && !item.assigned_tinyint) return false;
+          if (mode === "unassigned" && item.assigned_tinyint) return false;
+          if (!keyword) return true;
+          const phone = String(item.phone || "").toLowerCase();
+          const cdk = String(item.bound_cdk || "").toLowerCase();
+          return phone.includes(keyword) || cdk.includes(keyword);
+        });
+      }
+
+      function filterSmsCdkItems(items) {
+        const keyword = (smsSearchInput?.value || "").trim().toLowerCase();
+        if (!keyword) return items;
+        return items.filter((item) => {
+          const phone = String(item.phone || "").toLowerCase();
+          const cdk = String(item.code || "").toLowerCase();
+          return phone.includes(keyword) || cdk.includes(keyword);
+        });
+      }
+
+      function getSelectedSmsPoolPhones() {
+        return Array.from(smsPhonePoolEl.querySelectorAll(".sms-pool-checkbox:checked"))
+          .map((checkbox) => checkbox.dataset.phone || "")
+          .filter(Boolean);
       }
 
       function getSelectedAccountRows() {
@@ -1086,6 +1297,43 @@
             }
           });
         });
+
+        tableBody.querySelectorAll(".assign-phone-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const cdk = button.dataset.cdk;
+            if (!cdk) return;
+            setStatus(`正在为 ${cdk} 分配手机号...`);
+            try {
+              const result = await fetchJson(`/api/admin/accounts/${encodeURIComponent(cdk)}/assign-phone`, {
+                method: "POST",
+              });
+              setStatus(result.status === "existing" ? `账号 ${cdk} 已绑定手机号 ${result.phone}` : `已为 ${cdk} 分配手机号 ${result.phone}`);
+              await loadAccounts();
+              await loadSmsDashboard();
+            } catch (error) {
+              setStatus(error.message, true);
+            }
+          });
+        });
+
+        tableBody.querySelectorAll(".unbind-phone-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const cdk = button.dataset.cdk;
+            if (!cdk) return;
+            if (!window.confirm(`确认解绑 ${cdk} 的手机号吗？`)) return;
+            setStatus(`正在解绑 ${cdk} 的手机号...`);
+            try {
+              const result = await fetchJson(`/api/admin/accounts/${encodeURIComponent(cdk)}/unbind-phone`, {
+                method: "POST",
+              });
+              setStatus(result.phone ? `已解绑手机号 ${result.phone}` : `账号 ${cdk} 当前没有绑定手机号`);
+              await loadAccounts();
+              await loadSmsDashboard();
+            } catch (error) {
+              setStatus(error.message, true);
+            }
+          });
+        });
       }
 
       function renderAccounts(items) {
@@ -1110,16 +1358,92 @@
             <td><span class="state-pill ${item.redeemed ? "state-on" : "state-off"}">${item.redeemed ? "已兑换" : "未兑换"}</span></td>
             <td>${formatDisplayTime(item.redeemed_at)}</td>
             <td>${item.email}</td>
+            <td class="mono">${formatPhoneDisplay(item.phone)}</td>
             <td>${item.gpt_password}</td>
             <td>${formatDisplayTime(item.created_at)}</td>
             <td class="action-cell">
               <button type="button" class="copy-cdk-btn table-action-btn" data-cdk="${item.cdk || ""}">复制CDK</button>
+              <button type="button" class="assign-phone-btn table-action-btn" data-cdk="${item.cdk}">分配手机号</button>
+              <button type="button" class="unbind-phone-btn table-action-btn" data-cdk="${item.cdk}">解绑手机号</button>
               <button type="button" class="delete-account-btn table-action-btn" data-cdk="${item.cdk}">删除</button>
             </td>
           </tr>
         `).join("");
         bindAccountEvents();
         syncAccountTableWidth();
+      }
+
+      function bindSmsEvents() {
+        smsCdksEl.querySelectorAll(".sms-cdk-clickable").forEach((span) => {
+          span.addEventListener("click", async () => {
+            const cdk = span.dataset.cdk || "";
+            if (!cdk) return;
+            const ok = await copyText(cdk);
+            setSmsStatus(ok ? `已复制：${cdk}` : "复制失败", !ok);
+          });
+        });
+
+        smsCdksEl.querySelectorAll(".delete-sms-cdk-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const code = button.dataset.code;
+            if (!code) return;
+            const confirmed = window.confirm(`确认删除 SMS CDK ${code} 吗？`);
+            if (!confirmed) return;
+            setSmsStatus(`正在删除 ${code}...`);
+            try {
+              await fetchJson(`/api/admin/sms/cdks/${encodeURIComponent(code)}`, {
+                method: "DELETE",
+              });
+              setSmsStatus(`已删除 ${code}`);
+              await loadSmsDashboard();
+            } catch (error) {
+              setSmsStatus(error.message, true);
+            }
+          });
+        });
+
+        smsPhonePoolEl.querySelectorAll(".sms-upstream-clickable").forEach((span) => {
+          span.addEventListener("click", async () => {
+            const value = span.dataset.value || "";
+            if (!value || value === "-") return;
+            const ok = await copyText(value);
+            setSmsStatus(ok ? "已复制原始取件地址" : "复制失败", !ok);
+          });
+        });
+
+        smsCdksEl.querySelectorAll(".refresh-sms-cdk-btn").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const code = button.dataset.code;
+            if (!code) return;
+            const confirmed = window.confirm(`确认刷新 SMS CDK ${code} 吗？刷新后将生成一个新的 CDK。`);
+            if (!confirmed) return;
+            setSmsStatus(`正在刷新 ${code}...`);
+            try {
+              const result = await fetchJson(`/api/admin/sms/cdks/${encodeURIComponent(code)}/refresh`, {
+                method: "POST",
+              });
+              const row = button.closest("tr");
+              if (row) {
+                const cdkEl = row.querySelector(".sms-cdk-clickable");
+                if (cdkEl) {
+                  cdkEl.textContent = result.new_code || result.old_code || code;
+                  cdkEl.dataset.cdk = result.new_code || result.old_code || code;
+                }
+                row.querySelectorAll(".refresh-sms-cdk-btn, .delete-sms-cdk-btn").forEach((actionBtn) => {
+                  actionBtn.dataset.code = result.new_code || result.old_code || code;
+                });
+                const cells = row.querySelectorAll("td");
+                if (cells[3]) cells[3].textContent = "-";
+                if (cells[4]) cells[4].textContent = "-";
+                if (cells[5]) cells[5].textContent = "-";
+              }
+              setSmsStatus(`已刷新：${result.old_code} -> ${result.new_code}`);
+              await loadSmsDashboard();
+            } catch (error) {
+              setSmsStatus(error.message, true);
+            }
+          });
+        });
       }
 
       function filterAccounts() {
@@ -1193,42 +1517,69 @@
         const data = dashboardData;
         const stats = data.stats || {};
         const phoneMap = new Map((phonesData.items || []).map(item => [item.phone, item]));
+        const phoneToCdkMap = new Map((data.recentCdks || []).map(item => [item.phone, item.code]));
+        (phonesData.items || []).forEach((item) => {
+          item.bound_cdk = phoneToCdkMap.get(item.phone || "") || "";
+        });
         smsStatsEl.innerHTML = `
-          <tr><td>可分配号码</td><td>${stats.availablePhones || 0}</td></tr>
-          <tr><td>已分配号码</td><td>${stats.assignedPhones || 0}</td></tr>
-          <tr><td>未使用 SMS CDK</td><td>${stats.unusedCdks || 0}</td></tr>
-          <tr><td>已兑换 SMS CDK</td><td>${stats.redeemedCdks || 0}</td></tr>
+          <article class="stat-card">
+            <div class="stat-card-label">可分配号码</div>
+            <div class="stat-card-value">${stats.availablePhones || 0}</div>
+            <div class="stat-card-note">当前还能继续绑定生成 CDK 的号码</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-card-label">已分配号码</div>
+            <div class="stat-card-value">${stats.assignedPhones || 0}</div>
+            <div class="stat-card-note">已经和 SMS CDK 建立绑定关系</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-card-label">未使用 SMS CDK</div>
+            <div class="stat-card-value">${stats.unusedCdks || 0}</div>
+            <div class="stat-card-note">仍可售卖或继续使用的接码 CDK</div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-card-label">已兑换 SMS CDK</div>
+            <div class="stat-card-value">${stats.redeemedCdks || 0}</div>
+            <div class="stat-card-note">已经完成兑换领取的接码 CDK</div>
+          </article>
         `;
 
-        smsCdksEl.innerHTML = (data.recentCdks || []).map(item => `
+        const filteredPhones = filterSmsPoolItems(phonesData.items || []);
+        smsPhonePoolEl.innerHTML = filteredPhones.map(item => `
           <tr>
-            <td class="mono">${item.phone || "-"}</td>
-            <td class="mono">${item.code || ""}</td>
-            <td>${item.status || ""}</td>
-            <td>${(phoneMap.get(item.phone || "") || {}).remark || "-"}</td>
-            <td>${formatDisplayTime(item.redeemed_at)}</td>
-            <td class="action-cell"><button type="button" class="delete-sms-cdk-btn table-action-btn" data-code="${item.code || ""}">删除</button></td>
+            <td><input type="checkbox" class="sms-pool-checkbox" data-phone="${item.phone || ""}" /></td>
+            <td class="mono">${formatPhoneDisplay(item.phone)}</td>
+            <td class="mono">${phoneToCdkMap.get(item.phone || "") || "-"}</td>
+            <td>${formatPhoneAssignedSource(item.assigned_type, item.assigned_ref)}</td>
+            <td class="mono"><span class="cdk-clickable sms-upstream-clickable" data-value="${item.upstream_url || ""}">${item.upstream_url || "-"}</span></td>
+            <td><span class="state-pill ${item.assigned_tinyint ? "state-on" : "state-off"}">${formatPhoneAssigned(item.assigned_tinyint)}</span></td>
           </tr>
         `).join("");
 
-        smsCdksEl.querySelectorAll(".delete-sms-cdk-btn").forEach((button) => {
-          button.addEventListener("click", async () => {
-            const code = button.dataset.code;
-            if (!code) return;
-            const confirmed = window.confirm(`确认删除 SMS CDK ${code} 吗？`);
-            if (!confirmed) return;
-            setSmsStatus(`正在删除 ${code}...`);
-            try {
-              await fetchJson(`/api/admin/sms/cdks/${encodeURIComponent(code)}`, {
-                method: "DELETE",
-              });
-              setSmsStatus(`已删除 ${code}`);
-              await loadSmsDashboard();
-            } catch (error) {
-              setSmsStatus(error.message, true);
-            }
+        smsPhonePoolEl.querySelectorAll(".sms-pool-checkbox").forEach((checkbox) => {
+          checkbox.addEventListener("change", () => {
+            const all = Array.from(smsPhonePoolEl.querySelectorAll(".sms-pool-checkbox"));
+            const checked = all.filter((item) => item.checked).length;
+            selectAllSmsPoolEl.checked = all.length > 0 && checked === all.length;
           });
         });
+
+        const filteredCdks = filterSmsCdkItems(data.recentCdks || []);
+        smsCdksEl.innerHTML = filteredCdks.map(item => `
+          <tr>
+            <td class="mono"><span class="cdk-clickable sms-cdk-clickable" data-cdk="${item.code || ""}">${item.code || ""}</span></td>
+            <td class="mono">${formatPhoneDisplay(item.phone)}</td>
+            <td><span class="state-pill ${smsStatusClass(item.status)}">${formatSmsStatus(item.status)}</span></td>
+            <td class="mono">${item.latest_sms_code || "-"}</td>
+            <td>${formatDisplayTime(item.latest_sms_fetched_at)}</td>
+            <td>${formatDisplayTime(item.redeemed_at)}</td>
+            <td class="action-cell">
+              <button type="button" class="refresh-sms-cdk-btn table-action-btn" data-code="${item.code || ""}">刷新CDK</button>
+              <button type="button" class="delete-sms-cdk-btn table-action-btn" data-code="${item.code || ""}">删除</button>
+            </td>
+          </tr>
+        `).join("");
+        bindSmsEvents();
       }
 
       function renderMailboxMails(items) {
@@ -1456,13 +1807,76 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ lines }),
           });
-          const codes = Array.isArray(data.codes) ? data.codes.filter(Boolean) : [];
-          const codeText = codes.length ? `，已分配 CDK：${codes.join(" / ")}` : "，没有新增可分配 CDK";
-          setSmsStatus(`导入完成，共 ${data.total} 条，新增 ${data.inserted} 条，更新 ${data.updated} 条${codeText}`);
+          setSmsStatus(`导入完成，共 ${data.total} 条，新增 ${data.inserted} 条，更新 ${data.updated} 条`);
           document.getElementById("smsLines").value = "";
           closeModal(smsImportModal);
           await loadSmsDashboard();
           switchTab("sms");
+        } catch (error) {
+          setSmsStatus(error.message, true);
+        }
+      });
+
+      document.getElementById("smsGenerateBtn").addEventListener("click", async () => {
+        const count = Number(document.getElementById("smsGenerateCount").value || 0);
+        if (!count || count <= 0) {
+          setSmsStatus("请输入正确的生成数量", true);
+          return;
+        }
+        setSmsStatus(`正在生成 ${count} 个 SMS CDK...`);
+        try {
+          const data = await fetchJson("/api/admin/sms/cdks/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ count, prefix: "SMS", length: 10 }),
+          });
+          setSmsStatus(`生成完成，共 ${data.count || 0} 个`);
+          await loadSmsDashboard();
+          switchTab("sms");
+        } catch (error) {
+          setSmsStatus(error.message, true);
+        }
+      });
+
+      selectAllSmsPoolEl.addEventListener("change", () => {
+        const checked = selectAllSmsPoolEl.checked;
+        smsPhonePoolEl.querySelectorAll(".sms-pool-checkbox").forEach((checkbox) => {
+          checkbox.checked = checked;
+        });
+      });
+
+      smsPoolFilterEl.addEventListener("change", () => {
+        selectAllSmsPoolEl.checked = false;
+        loadSmsDashboard().catch(err => setSmsStatus(err.message, true));
+      });
+
+      smsSearchInput.addEventListener("input", () => {
+        loadSmsDashboard().catch(err => setSmsStatus(err.message, true));
+      });
+
+      smsPoolSearchInput.addEventListener("input", () => {
+        selectAllSmsPoolEl.checked = false;
+        loadSmsDashboard().catch(err => setSmsStatus(err.message, true));
+      });
+
+      smsPoolBatchDeleteBtn.addEventListener("click", async () => {
+        const phones = getSelectedSmsPoolPhones();
+        if (!phones.length) {
+          setSmsStatus("请先选择要删除的手机号", true);
+          return;
+        }
+        if (!window.confirm(`确认删除选中的 ${phones.length} 个手机号吗？`)) {
+          return;
+        }
+        setSmsStatus(`正在删除 ${phones.length} 个手机号...`);
+        try {
+          for (const phone of phones) {
+            await fetchJson(`/api/admin/sms/phones/${encodeURIComponent(phone)}`, {
+              method: "DELETE",
+            });
+          }
+          setSmsStatus(`已删除 ${phones.length} 个手机号`);
+          await loadSmsDashboard();
         } catch (error) {
           setSmsStatus(error.message, true);
         }
